@@ -1,5 +1,9 @@
-﻿using System;
+﻿using Emgu.CV;
+using Emgu.CV.Structure;
+using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -10,6 +14,10 @@ namespace tcp_to_udp
 {
      class Udp_to_tcp
     {
+
+        private static bool[] _isStreaming = new bool[3];
+        private static VideoCapture[] _cameras = new VideoCapture[3];
+
 
         UdpClient udp_client;
         IPEndPoint udp_addres_1;
@@ -54,6 +62,9 @@ namespace tcp_to_udp
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
 
+            start_cam(0,5000);
+            start_cam(1, 5001);
+            start_cam(2, 5002);
         }
 
 
@@ -203,6 +214,73 @@ namespace tcp_to_udp
             }
 
 
+        }
+
+        static void start_cam(int ind,int port)
+        {
+            // Параметры UDP
+            string clientIp = "127.0.0.1"; // IP клиента для отправки
+            int clientPort = port; // Порт клиента
+
+            // Инициализация камеры
+            _cameras[ind] = new VideoCapture(ind); // 0 - индекс камеры по умолчанию
+
+            if (!_cameras[ind].IsOpened)
+            {
+                Console.WriteLine("Ошибка: не удалось открыть камеру!");
+                return;
+            }
+
+            Console.WriteLine("Начало видеопотока через UDP...");
+            Console.WriteLine($"Отправка на {clientIp}:{clientPort}");
+            Console.WriteLine("Нажмите любую клавишу для остановки...");
+
+            // Запуск потока для отправки видео
+            Thread streamThread = new Thread(() => StreamVideo(clientIp, clientPort,ind));
+            streamThread.Start();
+
+            // Ожидание остановки
+            // Console.ReadKey();
+            _isStreaming[ind] = true;
+
+            // Завершение
+          //  streamThread.Join();
+          //  _camera.Dispose();
+           // Console.WriteLine("Поток остановлен.");
+        }
+
+        static void StreamVideo(string ipAddress, int port,int ind)
+        {
+            using (UdpClient udpSender = new UdpClient())
+            {
+                IPEndPoint clientEndpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+                Mat frame = new Mat();
+                while (_isStreaming[ind])
+                {
+                    _cameras[ind].Read(frame);
+                    if (!frame.IsEmpty)
+                    {
+                        byte[] jpegBytes = FrameToJpegBytes(frame);
+                        udpSender.Send(jpegBytes, jpegBytes.Length, clientEndpoint);
+
+                        Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
+                    }
+
+                    Thread.Sleep(33); // ~30 FPS
+                }
+            }
+        }
+
+        static byte[] FrameToJpegBytes(Mat frame)
+        {
+            // Конвертация Mat в Bitmap
+            using (Bitmap bitmap = frame.ToBitmap())
+            using (MemoryStream ms = new MemoryStream())
+            {
+                // Сохранение как JPEG (можно настроить качество)
+                bitmap.Save(ms, ImageFormat.Jpeg);
+                return ms.ToArray();
+            }
         }
 
     }
