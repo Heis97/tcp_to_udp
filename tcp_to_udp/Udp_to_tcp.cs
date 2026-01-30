@@ -1,5 +1,7 @@
 ﻿using Emgu.CV;
+using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
+using Emgu.CV.Util;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -9,6 +11,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Encoder = System.Drawing.Imaging.Encoder;
 
 namespace tcp_to_udp
 {
@@ -62,9 +65,11 @@ namespace tcp_to_udp
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
 
-            start_cam(0,5000);
-            start_cam(1, 5001);
-            start_cam(2, 5002);
+            //start_cam(0,5000);
+            //Thread.Sleep(2000);
+           // start_cam(1, 5001);
+            //Thread.Sleep(2000);
+            //start_cam(2, 5002);
         }
 
 
@@ -221,10 +226,16 @@ namespace tcp_to_udp
             // Параметры UDP
             string clientIp = "127.0.0.1"; // IP клиента для отправки
             int clientPort = port; // Порт клиента
+            _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию  //
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth,640);
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, 480);
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);
 
-            // Инициализация камеры
-            _cameras[ind] = new VideoCapture(ind,VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Exposure, -9);
 
+
+
+            Console.WriteLine(_cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameWidth) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameHeight) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.Fps));
             if (!_cameras[ind].IsOpened)
             {
                 Console.WriteLine("Ошибка: не удалось открыть камеру!");
@@ -232,21 +243,9 @@ namespace tcp_to_udp
             }
 
             Console.WriteLine("Начало видеопотока через UDP...  "+ind);
-           // Console.WriteLine($"Отправка на {clientIp}:{clientPort}");
-           // Console.WriteLine("Нажмите любую клавишу для остановки...");
-
-            // Запуск потока для отправки видео
             Thread streamThread = new Thread(() => StreamVideo(clientIp, clientPort,ind));
             streamThread.Start();
-
-            // Ожидание остановки
-            // Console.ReadKey();
             _isStreaming[ind] = true;
-
-            // Завершение
-          //  streamThread.Join();
-          //  _camera.Dispose();
-           // Console.WriteLine("Поток остановлен.");
         }
 
         static void StreamVideo(string ipAddress, int port,int ind)
@@ -258,14 +257,22 @@ namespace tcp_to_udp
                 while (_isStreaming[ind])
                 {
                     _cameras[ind].Read(frame);
+                    //CvInvoke.Resize(frame, frame, new Size(640, 480));
                     if (!frame.IsEmpty)
                     {
-                        byte[] jpegBytes = FrameToJpegBytes(frame);
-                        udpSender.Send(jpegBytes, jpegBytes.Length, clientEndpoint);
+                        byte[] jpegBytes = FrameToJpegBytesEmgu(frame);
                         //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
+                        if(jpegBytes.Length<65000)
+                        {
+                            udpSender.Send(jpegBytes, jpegBytes.Length, clientEndpoint);
+                        }
+                       
+                      
+                       // udpSender.Send(jpegBytes, 65536, clientEndpoint);
+                        
                     }
 
-                    Thread.Sleep(33); // ~30 FPS
+                    Thread.Sleep(15); // ~30 FPS
                 }
             }
         }
@@ -277,9 +284,45 @@ namespace tcp_to_udp
             using (MemoryStream ms = new MemoryStream())
             {
                 // Сохранение как JPEG (можно настроить качество)
-                bitmap.Save(ms, ImageFormat.Jpeg);
+                ImageCodecInfo jpegCodec = GetEncoderInfo("image/jpeg");
+                
+                EncoderParameters encoderParams = new EncoderParameters(1);
+                // Качество в процентах (0-100)
+                if(jpegCodec != null)   
+                {
+                    encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, 50);
+                    bitmap.Save(ms, jpegCodec, encoderParams);
+
+                }
                 return ms.ToArray();
             }
+        }
+
+        static byte[] FrameToJpegBytesEmgu(Mat frame, int quality = 90)
+        {
+            KeyValuePair<ImwriteFlags, int>[] encodeParams = new KeyValuePair<ImwriteFlags, int>[]
+            {
+            new KeyValuePair<ImwriteFlags, int>(ImwriteFlags.JpegQuality, quality)
+            };
+            byte[] buffer;
+            using (VectorOfByte vector = new VectorOfByte())
+            {
+                CvInvoke.Imencode(".jpg", frame, vector, encodeParams);
+                buffer = vector.ToArray();
+            }
+            return buffer;
+
+        }
+
+        static ImageCodecInfo GetEncoderInfo(string mimeType)
+        {
+            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
+            foreach (ImageCodecInfo codec in codecs)
+            {
+                if (codec.MimeType == mimeType)
+                    return codec;
+            }
+            return null;
         }
 
     }

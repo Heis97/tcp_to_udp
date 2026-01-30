@@ -222,6 +222,7 @@ namespace tcp_to_udp
             catch (SocketException ex)
             {
                 Console.WriteLine("Error accessing RemoteEndPoint: " + ex.Message);
+                Console.ReadKey();
             }
             _stream = client.GetStream();
             _response = new StringBuilder();
@@ -234,7 +235,7 @@ namespace tcp_to_udp
         public void startServer()
         {
             _server = null;
-            //try
+            try
             {
                 IPAddress localAddr = IPAddress.Parse("127.0.0.1");
                 _server = new TcpListener(localAddr, port);
@@ -242,9 +243,10 @@ namespace tcp_to_udp
                 Console.WriteLine("start server");
                 wait_client();
             }
-            //catch (Exception e)
+            catch (Exception e)
             {
-                // Console.WriteLine(e.Message);
+                 Console.WriteLine(e.Message);
+                Console.ReadKey();
             }
             //finally
             {
