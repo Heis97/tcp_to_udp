@@ -223,7 +223,7 @@ namespace tcp_to_udp
             int clientPort = port; // Порт клиента
 
             // Инициализация камеры
-            _cameras[ind] = new VideoCapture(ind); // 0 - индекс камеры по умолчанию
+            _cameras[ind] = new VideoCapture(ind,VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию
 
             if (!_cameras[ind].IsOpened)
             {
@@ -231,9 +231,9 @@ namespace tcp_to_udp
                 return;
             }
 
-            Console.WriteLine("Начало видеопотока через UDP...");
-            Console.WriteLine($"Отправка на {clientIp}:{clientPort}");
-            Console.WriteLine("Нажмите любую клавишу для остановки...");
+            Console.WriteLine("Начало видеопотока через UDP...  "+ind);
+           // Console.WriteLine($"Отправка на {clientIp}:{clientPort}");
+           // Console.WriteLine("Нажмите любую клавишу для остановки...");
 
             // Запуск потока для отправки видео
             Thread streamThread = new Thread(() => StreamVideo(clientIp, clientPort,ind));
@@ -262,8 +262,7 @@ namespace tcp_to_udp
                     {
                         byte[] jpegBytes = FrameToJpegBytes(frame);
                         udpSender.Send(jpegBytes, jpegBytes.Length, clientEndpoint);
-
-                        Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
+                        //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
                     }
 
                     Thread.Sleep(33); // ~30 FPS

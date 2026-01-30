@@ -152,10 +152,14 @@ namespace tcp_to_udp
         }
         public void send_mes(string send_prog)
         {
-            if(_stream.CanWrite)
+            try
             {
                 byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
                 _stream.Write(send, 0, send.Length);
+            }
+            catch (System.IO.IOException e ) 
+            {
+                wait_client();
             }
             
         }
@@ -200,30 +204,43 @@ namespace tcp_to_udp
                 buffer_out = "";
             }
         }
+        public void wait_client()
+        {
+            Console.WriteLine("wait");
+            TcpClient client = _server.AcceptTcpClient();
+            Console.WriteLine("client connected");
+            connected = true;
+            try
+            {
+                IPEndPoint remoteIpEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
+                IPAddress remoteIPAddress = remoteIpEndPoint.Address;
+                int remotePort = remoteIpEndPoint.Port;
 
-
+                Console.WriteLine("Client IP Address is: " + remoteIPAddress.ToString());
+                Console.WriteLine("Client Port is: " + remotePort);
+            }
+            catch (SocketException ex)
+            {
+                Console.WriteLine("Error accessing RemoteEndPoint: " + ex.Message);
+            }
+            _stream = client.GetStream();
+            _response = new StringBuilder();
+            while (true)
+            {
+                handle();
+            }
+        }
+        TcpListener _server;
         public void startServer()
         {
-            TcpListener server = null;
+            _server = null;
             //try
             {
                 IPAddress localAddr = IPAddress.Parse("127.0.0.1");
-                server = new TcpListener(localAddr, port);
-                server.Start();
+                _server = new TcpListener(localAddr, port);
+                _server.Start();
                 Console.WriteLine("start server");
-                TcpClient client = server.AcceptTcpClient();
-                Console.WriteLine("client connected");
-                connected = true;
-                _stream = client.GetStream();
-                _response = new StringBuilder();
-                while (true)
-                {
-
-
-                    handle();
-
-
-                }
+                wait_client();
             }
             //catch (Exception e)
             {
