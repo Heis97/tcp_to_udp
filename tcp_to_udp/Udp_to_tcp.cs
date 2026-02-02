@@ -11,6 +11,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using WinRT.Interop;
 using Encoder = System.Drawing.Imaging.Encoder;
 
 namespace tcp_to_udp
@@ -35,6 +36,8 @@ namespace tcp_to_udp
 
         Thread server_thread2 = null;
         TCPserver _TCPserver2 = null;
+
+        Thread[] cams_thr = new Thread[3];
         public void connect_udp_all()
         {
             udp_client = null;
@@ -43,7 +46,7 @@ namespace tcp_to_udp
             udp_client = new UdpClient(50000);
             string ip1 = "192.168.10.212";
             var port_udp1 = 52000;
-            udp_addres_1 = new IPEndPoint(parse_ip(ip1), port_udp1);
+            udp_addres_1 = new IPEndPoint(IPAddress.Parse(ip1), port_udp1);
             udp_client.Connect(udp_addres_1);
 
 
@@ -54,7 +57,7 @@ namespace tcp_to_udp
             udp_client2 = new UdpClient(50001);
             string ip2 = "192.168.10.211";
             var port_udp2 = 52100;
-            udp_addres_2 = new IPEndPoint(parse_ip(ip2), port_udp2);
+            udp_addres_2 = new IPEndPoint(IPAddress.Parse(ip2), port_udp2);
             udp_client2.Connect(udp_addres_2);
 
 
@@ -65,40 +68,12 @@ namespace tcp_to_udp
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
 
-            //start_cam(0,5000);
+            cams_thr[0]= start_cam(0,5000);
             //Thread.Sleep(2000);
-           // start_cam(1, 5001);
+            cams_thr[1] = start_cam(1, 5001);
             //Thread.Sleep(2000);
-            //start_cam(2, 5002);
+            cams_thr[2] = start_cam(2, 5002);
         }
-
-
-        public static IPAddress parse_ip(string ip)
-        {
-            if (ip == null) return null;
-            if (ip.Length < 3) return null;
-            if (ip.Count(c => c == '.') != 3) return null;
-
-            var cells = ip.Split('.');
-            var bytes = new byte[] { 0, 0, 0, 0 };
-            for (int i = 0; i < cells.Length; i++)
-            {
-                int cur_cell = -1;
-                if (int.TryParse(cells[i], out cur_cell))
-                {
-                    if (!(cur_cell >= 0 && cur_cell < 256))
-                    {
-                        return null;
-                    }
-                    else
-                    {
-                        bytes[i] = (byte)cur_cell;
-                    }
-                }
-            }
-            return new IPAddress(bytes);
-        }
-
 
 
         List<string> coms1 = new List<string>();
@@ -140,7 +115,24 @@ namespace tcp_to_udp
                                    // Console.WriteLine("add com2: " + command);
                                     coms2.Add(command);
                                 }
+                                else if (command.Contains("M590") && command.Contains("*"))
+                                {
+                                    var com = command.Split("*")[0];
+                                    // Console.WriteLine("add com2: " + command);
+                                    var command_af = com.Replace("  ", " ");
+                                    command_af = command_af.Replace("  ", " ");
+                                    var vars = command_af.Trim().Split(' ');
 
+                                    if(vars.Length > 3)
+                                    {
+                                        var ind_cam = Convert.ToInt32(vars[2]);
+                                        var exp_cam = Convert.ToInt32(vars[3]);
+                                        Console.WriteLine(ind_cam+" "+exp_cam);
+                                        _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, exp_cam);
+                                        //coms2.Add(command);
+                                    }
+                                    
+                                }
 
                         }
                     }
@@ -164,16 +156,15 @@ namespace tcp_to_udp
                             {
                                 _TCPserver1.pushBuffer(mes);
                                 // Console.WriteLine("len2: " + coms2.Count);
-                                foreach (var command in coms2)
+                                if(coms2.Count>0)
                                 {
-
-                                    //Console.WriteLine("com2: " + command);
-                                    var mes_out = Encoding.ASCII.GetBytes(command); count_ins++;
+                                    var mes_out = Encoding.ASCII.GetBytes(coms2[0]); count_ins++;
                                     udp_client2.SendAsync(mes_out, mes_out.Length);
                                     com_num++;
-
+                                    coms2.RemoveAt(0);
                                 }
-                                coms2 = new List<string>();
+                                
+                                //coms2 = new List<string>();
 
 
                             }
@@ -195,16 +186,14 @@ namespace tcp_to_udp
                             {
                                 _TCPserver1.pushBuffer(mes);
                                 // Console.WriteLine("len1: " + coms1.Count);
-                                foreach (var command in coms1)
+                                if (coms1.Count > 0)
                                 {
-
-                                    //Console.WriteLine("com1: " + command);
-                                    var mes_out = Encoding.ASCII.GetBytes(command);
+                                    var mes_out = Encoding.ASCII.GetBytes(coms1[0]); count_ins++;
                                     udp_client.SendAsync(mes_out, mes_out.Length);
                                     com_num++;
-
+                                    coms1.RemoveAt(0);
                                 }
-                                coms1 = new List<string>();
+                                
 
                             }
 
@@ -221,7 +210,7 @@ namespace tcp_to_udp
 
         }
 
-        static void start_cam(int ind,int port)
+        static Thread start_cam(int ind,int port)
         {
             // Параметры UDP
             string clientIp = "127.0.0.1"; // IP клиента для отправки
@@ -239,13 +228,14 @@ namespace tcp_to_udp
             if (!_cameras[ind].IsOpened)
             {
                 Console.WriteLine("Ошибка: не удалось открыть камеру!");
-                return;
+                return null;
             }
 
             Console.WriteLine("Начало видеопотока через UDP...  "+ind);
             Thread streamThread = new Thread(() => StreamVideo(clientIp, clientPort,ind));
             streamThread.Start();
             _isStreaming[ind] = true;
+            return streamThread;
         }
 
         static void StreamVideo(string ipAddress, int port,int ind)
@@ -277,26 +267,6 @@ namespace tcp_to_udp
             }
         }
 
-        static byte[] FrameToJpegBytes(Mat frame)
-        {
-            // Конвертация Mat в Bitmap
-            using (Bitmap bitmap = frame.ToBitmap())
-            using (MemoryStream ms = new MemoryStream())
-            {
-                // Сохранение как JPEG (можно настроить качество)
-                ImageCodecInfo jpegCodec = GetEncoderInfo("image/jpeg");
-                
-                EncoderParameters encoderParams = new EncoderParameters(1);
-                // Качество в процентах (0-100)
-                if(jpegCodec != null)   
-                {
-                    encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, 50);
-                    bitmap.Save(ms, jpegCodec, encoderParams);
-
-                }
-                return ms.ToArray();
-            }
-        }
 
         static byte[] FrameToJpegBytesEmgu(Mat frame, int quality = 90)
         {
@@ -312,17 +282,6 @@ namespace tcp_to_udp
             }
             return buffer;
 
-        }
-
-        static ImageCodecInfo GetEncoderInfo(string mimeType)
-        {
-            ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
-            foreach (ImageCodecInfo codec in codecs)
-            {
-                if (codec.MimeType == mimeType)
-                    return codec;
-            }
-            return null;
         }
 
     }
