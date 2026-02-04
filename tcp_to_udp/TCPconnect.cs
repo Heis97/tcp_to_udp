@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Windows.Media.Protection.PlayReady;
 
 namespace tcp_to_udp
 {
@@ -132,11 +133,16 @@ namespace tcp_to_udp
         private static StringBuilder _response;
         private static NetworkStream _stream;
         public bool connected = false;
+       public IPAddress remoteIPAddress = null;
+        public IPEndPoint remoteIpEndPoint = null;
+
         public TCPserver(int _port)
         {
             port = _port;
             buffer_in = "";
             buffer_out = "";
+            remoteIPAddress = IPAddress.Parse("127.0.0.1");
+            remoteIpEndPoint = new IPEndPoint(remoteIPAddress, 62000);
         }
         public string getBuffer()
         {
@@ -204,6 +210,10 @@ namespace tcp_to_udp
                 buffer_out = "";
             }
         }
+        public IPEndPoint get_client()
+        {
+            return remoteIpEndPoint;
+        }
         public void wait_client()
         {
             Console.WriteLine("wait");
@@ -212,8 +222,8 @@ namespace tcp_to_udp
             connected = true;
             try
             {
-                IPEndPoint remoteIpEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
-                IPAddress remoteIPAddress = remoteIpEndPoint.Address;
+                remoteIpEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
+                remoteIPAddress = remoteIpEndPoint.Address;
                 int remotePort = remoteIpEndPoint.Port;
 
                 Console.WriteLine("Client IP Address is: " + remoteIPAddress.ToString());
@@ -237,8 +247,7 @@ namespace tcp_to_udp
             _server = null;
             try
             {
-                IPAddress localAddr = IPAddress.Parse("127.0.0.1");
-                _server = new TcpListener(localAddr, port);
+                _server = new TcpListener(IPAddress.Any, port);
                 _server.Start();
                 Console.WriteLine("start server");
                 wait_client();

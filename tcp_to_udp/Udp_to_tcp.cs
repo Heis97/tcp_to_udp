@@ -95,8 +95,6 @@ namespace tcp_to_udp
                 if (_TCPserver1.connected)
                 {
                     var data = _TCPserver1.getBuffer();
-
-
                     if (data.Length > 3)
                     {
                         data = data.Replace('\r', ' ');
@@ -118,7 +116,7 @@ namespace tcp_to_udp
                                 else if (command.Contains("M590") && command.Contains("*"))
                                 {
                                     var com = command.Split("*")[0];
-                                    // Console.WriteLine("add com2: " + command);
+                                     //Console.WriteLine("add com3: " + command);
                                     var command_af = com.Replace("  ", " ");
                                     command_af = command_af.Replace("  ", " ");
                                     var vars = command_af.Trim().Split(' ');
@@ -155,18 +153,16 @@ namespace tcp_to_udp
                             if (_TCPserver1.connected)
                             {
                                 _TCPserver1.pushBuffer(mes);
-                                // Console.WriteLine("len2: " + coms2.Count);
+                                
                                 if(coms2.Count>0)
                                 {
+                                    //Console.WriteLine("send2: " + coms2[0]);
                                     var mes_out = Encoding.ASCII.GetBytes(coms2[0]); count_ins++;
                                     udp_client2.SendAsync(mes_out, mes_out.Length);
                                     com_num++;
                                     coms2.RemoveAt(0);
-                                }
-                                
+                                }                               
                                 //coms2 = new List<string>();
-
-
                             }
 
                         }
@@ -188,6 +184,7 @@ namespace tcp_to_udp
                                 // Console.WriteLine("len1: " + coms1.Count);
                                 if (coms1.Count > 0)
                                 {
+                                    //Console.WriteLine("send1: " + coms1[0]);
                                     var mes_out = Encoding.ASCII.GetBytes(coms1[0]); count_ins++;
                                     udp_client.SendAsync(mes_out, mes_out.Length);
                                     com_num++;
@@ -210,10 +207,10 @@ namespace tcp_to_udp
 
         }
 
-        static Thread start_cam(int ind,int port)
+        Thread start_cam(int ind,int port)
         {
             // Параметры UDP
-            string clientIp = "127.0.0.1"; // IP клиента для отправки
+
             int clientPort = port; // Порт клиента
             _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию  //
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth,640);
@@ -232,17 +229,17 @@ namespace tcp_to_udp
             }
 
             Console.WriteLine("Начало видеопотока через UDP...  "+ind);
-            Thread streamThread = new Thread(() => StreamVideo(clientIp, clientPort,ind));
+            Thread streamThread = new Thread(() => StreamVideo(port,ind));
             streamThread.Start();
             _isStreaming[ind] = true;
             return streamThread;
         }
 
-        static void StreamVideo(string ipAddress, int port,int ind)
+        void StreamVideo(int port,int ind)
         {
             using (UdpClient udpSender = new UdpClient())
             {
-                IPEndPoint clientEndpoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+                //IPEndPoint clientEndpoint = new IPEndPoint(_TCPserver1.get_client().Address, port);
                 Mat frame = new Mat();
                 while (_isStreaming[ind])
                 {
@@ -254,7 +251,7 @@ namespace tcp_to_udp
                         //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
                         if(jpegBytes.Length<65000)
                         {
-                            udpSender.Send(jpegBytes, jpegBytes.Length, clientEndpoint);
+                            udpSender.Send(jpegBytes, jpegBytes.Length, new IPEndPoint(_TCPserver1.get_client().Address, port));
                         }
                        
                       
