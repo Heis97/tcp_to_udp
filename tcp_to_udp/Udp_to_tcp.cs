@@ -105,12 +105,12 @@ namespace tcp_to_udp
                             if (command.Length > 3)
                                 if (command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
                                 {
-                                    //Console.WriteLine("add com1: "+ command);
+                                    Console.WriteLine("add com1: "+ command);
                                     coms1.Add(command);
                                 }
                                 else if (command.Contains("M585") || command.Contains("M581"))
                                 {
-                                   // Console.WriteLine("add com2: " + command);
+                                    Console.WriteLine("add com2: " + command);
                                     coms2.Add(command);
                                 }
                                 else if (command.Contains("M590") && command.Contains("*"))
@@ -156,7 +156,7 @@ namespace tcp_to_udp
                                 
                                 if(coms2.Count>0)
                                 {
-                                    //Console.WriteLine("send2: " + coms2[0]);
+                                    Console.WriteLine("send2: " + coms2[0]);
                                     var mes_out = Encoding.ASCII.GetBytes(coms2[0]); count_ins++;
                                     udp_client2.SendAsync(mes_out, mes_out.Length);
                                     com_num++;
@@ -184,7 +184,7 @@ namespace tcp_to_udp
                                 // Console.WriteLine("len1: " + coms1.Count);
                                 if (coms1.Count > 0)
                                 {
-                                    //Console.WriteLine("send1: " + coms1[0]);
+                                    Console.WriteLine("send1: " + coms1[0]);
                                     var mes_out = Encoding.ASCII.GetBytes(coms1[0]); count_ins++;
                                     udp_client.SendAsync(mes_out, mes_out.Length);
                                     com_num++;
@@ -231,6 +231,7 @@ namespace tcp_to_udp
             Console.WriteLine("Начало видеопотока через UDP...  "+ind);
             Thread streamThread = new Thread(() => StreamVideo(port,ind));
             streamThread.Start();
+
             _isStreaming[ind] = true;
             return streamThread;
         }
