@@ -160,41 +160,29 @@ namespace tcp_to_udp
                                 _TCPserver1.pushBuffer(mes);
 
                                 //Console.WriteLine(mes);
-
-
                                 // Console.WriteLine("len1: " + coms1.Count);
                                 if (coms1.Count > 0)
                                 {
                                     var cur_num_board = Convert.ToInt32(mes.Split(' ')[1]);
-
+                                    Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                                     if (count_send1 - 1 == cur_num_board)
                                     {
                                         var mes_out = Encoding.ASCII.GetBytes(coms1[0]); count_ins++;
                                         udp_client1.SendAsync(mes_out, mes_out.Length);
                                         //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                                     }
-
-                                    if (cur_num_board == count_send1)
+                                    else if (cur_num_board == count_send1)
                                     {
                                         coms1.RemoveAt(0);
                                         com_num++;
                                         count_send1++;
                                         //Console.WriteLine("send1 plus: " + cur_num_board + "/" + count_send1);
                                     }
-                                    if (cur_num_board > count_send1)
-                                    {
-                                        count_send1= cur_num_board;
-                                         //Console.WriteLine("send1 plus: " + cur_num_board + "/" + count_send1);
-                                    }
                                     else
                                     {
-
-
+                                        count_send1 = cur_num_board;
                                         //Console.WriteLine("send1 else: " + cur_num_board + "/" + count_send1);
-                                    }
-                                    
-
-                                   
+                                    }                                
                                 }
                             }
                         }
@@ -221,28 +209,23 @@ namespace tcp_to_udp
                                 {
 
                                     var cur_num_board = Convert.ToInt32(mes.Split(' ')[1]);
-
+                                    Console.WriteLine("send2 com: " + cur_num_board + "/" + count_send2 + " " + coms2[0]);
                                     if (count_send2 - 1 == cur_num_board)
                                     {
                                         var mes_out = Encoding.ASCII.GetBytes(coms2[0]); count_ins++;
                                         udp_client2.SendAsync(mes_out, mes_out.Length);
-                                       // Console.WriteLine("send2 com: " + cur_num_board + "/" + count_send2 + " " + coms2[0]);
+                                        //Console.WriteLine("send2 com: " + cur_num_board + "/" + count_send2 + " " + coms2[0]);
                                     }
-
-                                    if (cur_num_board == count_send2)
+                                    else if (cur_num_board == count_send2)
                                     {
                                         coms2.RemoveAt(0);
                                         com_num++;
                                         count_send2++;
-                                       // Console.WriteLine("send2 plus: " + cur_num_board + "/" + count_send2);
-                                    }
-                                    if (cur_num_board > count_send2)
-                                    {
-                                        count_send2 = cur_num_board;
-                                        //Console.WriteLine("send1 plus: " + cur_num_board + "/" + count_send1);
+                                        //Console.WriteLine("send2 plus: " + cur_num_board + "/" + count_send2);
                                     }
                                     else
                                     {
+                                        count_send2 = cur_num_board;
                                         //Console.WriteLine("send2 else: " + cur_num_board + "/" + count_send2);
                                     }
 
