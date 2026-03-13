@@ -89,8 +89,8 @@ namespace tcp_to_udp
         {
             int count_ins = 0;
 
-            int count_send1 = 0;
-            int count_send2 = 0;
+            ulong count_send1 = 0;
+            ulong count_send2 = 0;
             while (udp_client1 != null && udp_client2 != null)
             {
                 // Console.WriteLine("recive udp");
@@ -163,7 +163,7 @@ namespace tcp_to_udp
                                 // Console.WriteLine("len1: " + coms1.Count);
                                 if (coms1.Count > 0)
                                 {
-                                    var cur_num_board = Convert.ToInt32(mes.Split(' ')[1]);
+                                    var cur_num_board =(ulong) Convert.ToInt32(mes.Split(' ')[1]);
                                     Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                                     if (count_send1 - 1 == cur_num_board)
                                     {
@@ -208,7 +208,7 @@ namespace tcp_to_udp
                                 if(coms2.Count>0)
                                 {
 
-                                    var cur_num_board = Convert.ToInt32(mes.Split(' ')[1]);
+                                    var cur_num_board = (ulong)Convert.ToInt32(mes.Split(' ')[1]);
                                     Console.WriteLine("send2 com: " + cur_num_board + "/" + count_send2 + " " + coms2[0]);
                                     if (count_send2 - 1 == cur_num_board)
                                     {
@@ -362,7 +362,18 @@ namespace tcp_to_udp
         }
 
     }
+    class Command
+    {
 
+        public ulong num;
+        public string com;
+        public Command(ulong num, string com)
+        {
+            this.com = com;
+            this.num = num;
+        }
+
+    }
 
     class SettingsString
     {
