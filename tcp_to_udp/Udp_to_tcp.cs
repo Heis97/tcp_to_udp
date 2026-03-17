@@ -43,6 +43,9 @@ namespace tcp_to_udp
 
         Thread[] cams_thr = new Thread[3];
 
+        bool initing1 = false;
+        bool initing2 = false;
+
 
         int[] ports_cam = { 5000, 5001, 5002 };
         public void connect_udp_all()
@@ -165,6 +168,12 @@ namespace tcp_to_udp
                                 {
                                     var cur_num_board =(ulong) Convert.ToInt32(mes.Split(' ')[1]);
                                     Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
+
+                                    if(!initing1)
+                                    {
+                                        initing1 = true;
+                                        count_send1 = cur_num_board;
+                                    }
                                     if (count_send1 - 1 == cur_num_board)
                                     {
                                         var mes_out = Encoding.ASCII.GetBytes(coms1[0]); count_ins++;
@@ -178,7 +187,7 @@ namespace tcp_to_udp
                                         count_send1++;
                                         //Console.WriteLine("send1 plus: " + cur_num_board + "/" + count_send1);
                                     }
-                                    else
+                                    else 
                                     {
                                         count_send1 = cur_num_board;
                                         //Console.WriteLine("send1 else: " + cur_num_board + "/" + count_send1);
