@@ -43,6 +43,8 @@ namespace tcp_to_udp
 
         Thread[] cams_thr = new Thread[3];
 
+        long last_time = DateTime.Now.Ticks;
+
         bool initing1 = false;
         bool initing2 = false;
 
@@ -87,6 +89,8 @@ namespace tcp_to_udp
         List<string> coms1 = new List<string>();
         List<string> coms2 = new List<string>();
 
+        List<Command> commands1 = new List<Command>();
+        ulong command_counter1 = 0;
 
         void recieve_udp_all()
         {
@@ -117,8 +121,9 @@ namespace tcp_to_udp
                             if (command.Length > 3)
                                 if (command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
                                 {
-                                    Console.WriteLine("add com1: "+ command);
-                                    coms1.Add(command);
+                                    Console.WriteLine("add com1: " + command);
+                                    commands1.Add(new Command(command_counter1, command));  
+                                    command_counter1++;
                                 }
                                 else if (command.Contains("M585") || command.Contains("M581"))
                                 {
@@ -149,9 +154,14 @@ namespace tcp_to_udp
 
                     while (udp_client1.Available > 0)
                     {
+                       
+
                         var res = udp_client1.Receive(ref udp_addres_1);
 
+                        long dtime = DateTime.Now.Ticks - last_time;
+                        last_time = DateTime.Now.Ticks;
 
+                        Console.WriteLine(dtime);
 
                         var mes = Encoding.ASCII.GetString(res) + "\n";
                         if (res != null)
@@ -166,31 +176,32 @@ namespace tcp_to_udp
                                 // Console.WriteLine("len1: " + coms1.Count);
                                 if (coms1.Count > 0)
                                 {
-                                    var cur_num_board =(ulong) Convert.ToInt32(mes.Split(' ')[1]);
+                                    var cur_num_board =(ulong)Convert.ToInt32(mes.Split(' ')[1]);
                                     Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
 
                                     if(!initing1)
                                     {
                                         initing1 = true;
-                                        count_send1 = cur_num_board;
+                                        count_send1 = command_counter1 - cur_num_board;
                                     }
-                                    if (count_send1 - 1 == cur_num_board)
+                                    if (commands1[0].num - count_send1 - 1 == cur_num_board)
                                     {
-                                        var mes_out = Encoding.ASCII.GetBytes(coms1[0]); count_ins++;
+                                        var mes_out = Encoding.ASCII.GetBytes("N"+(commands1[0].num - count_send1) +" "+ commands1[0].com); 
                                         udp_client1.SendAsync(mes_out, mes_out.Length);
+                                        
                                         //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                                     }
-                                    else if (cur_num_board == count_send1)
+                                    else if (commands1[0].num - count_send1 == cur_num_board)
                                     {
-                                        coms1.RemoveAt(0);
-                                        com_num++;
-                                        count_send1++;
+                                        commands1.RemoveAt(0);
+
+                                       // count_send1++;
                                         //Console.WriteLine("send1 plus: " + cur_num_board + "/" + count_send1);
                                     }
                                     else 
                                     {
-                                        count_send1 = cur_num_board;
-                                        //Console.WriteLine("send1 else: " + cur_num_board + "/" + count_send1);
+                                        
+                                        Console.WriteLine("send1 else: " + cur_num_board + "/" + count_send1);
                                     }                                
                                 }
                             }
