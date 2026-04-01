@@ -57,6 +57,10 @@ namespace tcp_to_udp
         {
             var settins_string = load_obj<SettingsString>("settings_string.json");
             ports_cam = settins_string.ports_cam;
+
+            //var set_test = new SettingsString();
+           // set_test.ports_cam = ports_cam;
+            //save_obj("settings_string.json", set_test);
             udp_client1 = null;
             GC.Collect();
             udp_client1 = new UdpClient(50000);
