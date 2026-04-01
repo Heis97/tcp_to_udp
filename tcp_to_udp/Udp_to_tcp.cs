@@ -43,7 +43,10 @@ namespace tcp_to_udp
 
         Thread[] cams_thr = new Thread[3];
 
-        long last_time = DateTime.Now.Ticks;
+        long last_time_1 = DateTime.Now.Ticks;
+        long last_time_2 = DateTime.Now.Ticks;
+
+        long start_time = DateTime.Now.Ticks;
 
         bool initing1 = false;
         bool initing2 = false;
@@ -56,7 +59,6 @@ namespace tcp_to_udp
             ports_cam = settins_string.ports_cam;
             udp_client1 = null;
             GC.Collect();
-
             udp_client1 = new UdpClient(50000);
             string ip1 = "192.168.10.212";
             var port_udp1 = 52000;
@@ -67,7 +69,6 @@ namespace tcp_to_udp
 
             udp_client2 = null;
             GC.Collect();
-
             udp_client2 = new UdpClient(50001);
             string ip2 = "192.168.10.211";
             var port_udp2 = 52100;
@@ -90,14 +91,16 @@ namespace tcp_to_udp
         List<string> coms2 = new List<string>();
 
         List<Command> commands1 = new List<Command>();
-        ulong command_counter1 = 0;
+        List<Command> commands2 = new List<Command>();
+        long command_counter1 = 0;
+        long command_counter2 = 0;
 
         void recieve_udp_all()
         {
             int count_ins = 0;
 
-            ulong count_send1 = 0;
-            ulong count_send2 = 0;
+            long count_send1 = 0;
+            long count_send2 = 0;
             while (udp_client1 != null && udp_client2 != null)
             {
                 // Console.WriteLine("recive udp");
@@ -122,146 +125,167 @@ namespace tcp_to_udp
                                 if (command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
                                 {
                                     Console.WriteLine("add com1: " + command);
-                                    commands1.Add(new Command(command_counter1, command));  
+                                    commands1.Add(new Command(command_counter1, command));
                                     command_counter1++;
                                 }
                                 else if (command.Contains("M585") || command.Contains("M581"))
                                 {
                                     Console.WriteLine("add com2: " + command);
-                                    coms2.Add(command);
+                                    commands2.Add(new Command(command_counter2, command));
+                                    command_counter2++;
                                 }
                                 else if (command.Contains("M590"))
                                 {
- 
-                                     //Console.WriteLine("add com3: " + command);
+
+                                    //Console.WriteLine("add com3: " + command);
                                     var command_af = command.Replace("  ", " ");
                                     command_af = command_af.Replace("  ", " ");
                                     var vars = command_af.Trim().Split(' ');
 
-                                    if(vars.Length > 2)
+                                    if (vars.Length > 2)
                                     {
                                         var ind_cam = Convert.ToInt32(vars[1]);
                                         var exp_cam = Convert.ToInt32(vars[2]);
-                                        Console.WriteLine(ind_cam+" "+exp_cam);
+                                        Console.WriteLine(ind_cam + " " + exp_cam);
                                         _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, exp_cam);
                                         //coms2.Add(command);
                                     }
-                                    
+
                                 }
 
                         }
                     }
-
-                    while (udp_client1.Available > 0)
-                    {
+                }
+                while (udp_client1.Available > 0)
+                {
                        
 
-                        var res = udp_client1.Receive(ref udp_addres_1);
+                    var res = udp_client1.Receive(ref udp_addres_1);
 
-                        long dtime = DateTime.Now.Ticks - last_time;
-                        last_time = DateTime.Now.Ticks;
-
-                        Console.WriteLine(dtime);
-
-                        var mes = Encoding.ASCII.GetString(res) + "\n";
-                        if (res != null)
-                        {
-                            // Console.WriteLine("udp res: " + mes);
-                            //label_udp_state_1.BeginInvoke((MethodInvoker)(() => label_udp_state_1.Text = mes));
-                            if (_TCPserver1.connected)
-                            {
-                                _TCPserver1.pushBuffer(mes);
-
-                                //Console.WriteLine(mes);
-                                // Console.WriteLine("len1: " + coms1.Count);
-                                if (coms1.Count > 0)
-                                {
-                                    var cur_num_board =(ulong)Convert.ToInt32(mes.Split(' ')[1]);
-                                    Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
-
-                                    if(!initing1)
-                                    {
-                                        initing1 = true;
-                                        count_send1 = command_counter1 - cur_num_board;
-                                    }
-                                    if (commands1[0].num - count_send1 - 1 == cur_num_board)
-                                    {
-                                        var mes_out = Encoding.ASCII.GetBytes("N"+(commands1[0].num - count_send1) +" "+ commands1[0].com); 
-                                        udp_client1.SendAsync(mes_out, mes_out.Length);
-                                        
-                                        //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
-                                    }
-                                    else if (commands1[0].num - count_send1 == cur_num_board)
-                                    {
-                                        commands1.RemoveAt(0);
-
-                                       // count_send1++;
-                                        //Console.WriteLine("send1 plus: " + cur_num_board + "/" + count_send1);
-                                    }
-                                    else 
-                                    {
-                                        
-                                        Console.WriteLine("send1 else: " + cur_num_board + "/" + count_send1);
-                                    }                                
-                                }
-                            }
-                        }
-                    }
-
-                    while (udp_client2.Available > 0)
+                    long dtime = DateTime.Now.Ticks - last_time_1;
+                    last_time_1 = DateTime.Now.Ticks;
+                    if (dtime > 5000000)
                     {
-
-
-                        var res = udp_client2.Receive(ref udp_addres_2);
-
-                        var mes = Encoding.ASCII.GetString(res) + "\n";
-
-
-                        if (res != null)
+                        initing1 = false;
+                        Console.WriteLine("init 1 re:" + dtime+" "+ (last_time_1- start_time));
+                    }
+                    //Console.WriteLine(DateTime.Now.Ticks);
+                    var mes = Encoding.ASCII.GetString(res) + "\n";
+                    if (res != null)
+                    {
+                        if (_TCPserver1.connected)
                         {
-                            // Console.WriteLine("udp res: " + mes);
-                            // label_udp_state_2.BeginInvoke((MethodInvoker)(() => label_udp_state_2.Text = mes));
-                            if (_TCPserver1.connected)
+                            _TCPserver1.pushBuffer(mes);
+                        }
+                        //Console.WriteLine(mes);
+                        // Console.WriteLine("len1: " + coms1.Count);
+                        if (commands1.Count > 0)
+                        {
+                            var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
+                            //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
+                            var cur_num_ins = commands1[0].num - count_send1;
+                            if (!initing1)
                             {
-                                _TCPserver1.pushBuffer(mes);
-                                
-                                if(coms2.Count>0)
-                                {
-
-                                    var cur_num_board = (ulong)Convert.ToInt32(mes.Split(' ')[1]);
-                                    Console.WriteLine("send2 com: " + cur_num_board + "/" + count_send2 + " " + coms2[0]);
-                                    if (count_send2 - 1 == cur_num_board)
-                                    {
-                                        var mes_out = Encoding.ASCII.GetBytes(coms2[0]); count_ins++;
-                                        udp_client2.SendAsync(mes_out, mes_out.Length);
-                                        //Console.WriteLine("send2 com: " + cur_num_board + "/" + count_send2 + " " + coms2[0]);
-                                    }
-                                    else if (cur_num_board == count_send2)
-                                    {
-                                        coms2.RemoveAt(0);
-                                        com_num++;
-                                        count_send2++;
-                                        //Console.WriteLine("send2 plus: " + cur_num_board + "/" + count_send2);
-                                    }
-                                    else
-                                    {
-                                        count_send2 = cur_num_board;
-                                        //Console.WriteLine("send2 else: " + cur_num_board + "/" + count_send2);
-                                    }
-
-                                }
-                                //coms2 = new List<string>();
+                                initing1 = true;
+                                count_send1 = commands1[0].num - cur_num_board -1 ;
+                                cur_num_ins = commands1[0].num - count_send1 ;
+                                Console.WriteLine("init 1 f:" + dtime + " " + (last_time_1 - start_time));
+                                //Console.WriteLine("count_send1 " + count_send1 + ";cur_num_ins " + cur_num_ins + "; cur_num_board " + cur_num_board + "; commands1[0].num " + commands1[0].num);
                             }
 
+                            if (cur_num_ins - 1 == cur_num_board)
+                            {
+                                var com_cur = "N" + cur_num_ins + " " + commands1[0].com;
+                                var mes_out = Encoding.ASCII.GetBytes(com_cur); 
+                                udp_client1.SendAsync(mes_out, mes_out.Length);
+                                        
+                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                            }
+                            else if (cur_num_ins == cur_num_board)
+                            {
+                                commands1.RemoveAt(0);
+
+                                // count_send1++;
+                                //Console.WriteLine("send1 else if: " + cur_num_board + "/" + cur_num_ins);
+                            }
+                            else 
+                            {
+                                        
+                                //Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
+                            }                                
                         }
+                            
                     }
-
-
-                   
-                    // if (_TCPserver1.connected) _TCPserver1.handle();
-
-                    if (com_num > 1) Console.WriteLine(com_num);
                 }
+
+                while (udp_client2.Available > 0)
+                {
+
+
+                    var res = udp_client2.Receive(ref udp_addres_2);
+
+                    long dtime = DateTime.Now.Ticks - last_time_2;
+                    last_time_2 = DateTime.Now.Ticks;
+                    if (dtime > 5000000)
+                    {
+                        initing2 = false;
+                        Console.WriteLine("init 2 re:" + dtime + " " + (last_time_2 - start_time));
+                    }
+                    //Console.WriteLine(DateTime.Now.Ticks);
+                    var mes = Encoding.ASCII.GetString(res) + "\n";
+                    if (res != null)
+                    {
+                        if (_TCPserver1.connected)
+                        {
+                            _TCPserver1.pushBuffer(mes);
+                        }
+                        //Console.WriteLine(mes);
+                        // Console.WriteLine("len1: " + coms1.Count);
+                        if (commands2.Count > 0)
+                        {
+                            var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
+                            //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
+                            var cur_num_ins = commands2[0].num - count_send2;
+                            if (!initing2)
+                            {
+                                initing2 = true;
+                                count_send2 = commands2[0].num - cur_num_board - 1;
+                                cur_num_ins = commands2[0].num - count_send2;
+                                //Console.WriteLine("count_send1 " + count_send1 + ";cur_num_ins " + cur_num_ins + "; cur_num_board " + cur_num_board + "; commands1[0].num " + commands1[0].num);
+                                Console.WriteLine("init 2 f:" + dtime + " " + (last_time_2 - start_time));
+                            }
+
+                            if (cur_num_ins - 1 == cur_num_board)
+                            {
+                                var com_cur = "N" + cur_num_ins + " " + commands2[0].com;
+                                var mes_out = Encoding.ASCII.GetBytes(com_cur);
+                                udp_client2.SendAsync(mes_out, mes_out.Length);
+
+                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                            }
+                            else if (cur_num_ins == cur_num_board)
+                            {
+                                commands2.RemoveAt(0);
+
+                                // count_send1++;
+                                //Console.WriteLine("send1 else if: " + cur_num_board + "/" + cur_num_ins);
+                            }
+                            else
+                            {
+
+                                //Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
+                            }
+                        }
+
+                    }
+                }
+
+
+
+                // if (_TCPserver1.connected) _TCPserver1.handle();
+
+                //if (com_num > 1) Console.WriteLine(com_num);
+
             }
 
 
@@ -385,9 +409,9 @@ namespace tcp_to_udp
     class Command
     {
 
-        public ulong num;
+        public long num;
         public string com;
-        public Command(ulong num, string com)
+        public Command(long num, string com)
         {
             this.com = com;
             this.num = num;
