@@ -160,7 +160,7 @@ namespace tcp_to_udp
                         }
                     }
                 }
-                while (udp_client1.Available > 0)
+                if (udp_client1.Available > 0)
                 {
                        
 
@@ -222,7 +222,7 @@ namespace tcp_to_udp
                     }
                 }
 
-                while (udp_client2.Available > 0)
+                if (udp_client2.Available > 0)
                 {
 
 
