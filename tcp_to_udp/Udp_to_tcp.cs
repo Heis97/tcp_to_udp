@@ -126,6 +126,7 @@ namespace tcp_to_udp
                         {
                             Console.WriteLine("command: " + command);
                             if (command.Length > 3)
+                            {
                                 if (command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
                                 {
                                     Console.WriteLine("add com1: " + command);
@@ -156,6 +157,8 @@ namespace tcp_to_udp
                                     }
 
                                 }
+                            }
+                                
 
                         }
                     }
