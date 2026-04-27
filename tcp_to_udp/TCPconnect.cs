@@ -219,6 +219,7 @@ namespace tcp_to_udp
             Console.WriteLine("wait");
             TcpClient client = _server.AcceptTcpClient();
             Console.WriteLine("client connected");
+            buffer_out = "";
             connected = true;
             try
             {
