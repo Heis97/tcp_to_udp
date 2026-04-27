@@ -1,4 +1,5 @@
-﻿using Emgu.CV;
+﻿using DirectShowLib;
+using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
@@ -16,6 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using WinRT.Interop;
+
 using Encoder = System.Drawing.Imaging.Encoder;
 
 namespace tcp_to_udp
@@ -57,7 +59,7 @@ namespace tcp_to_udp
         {
             var settins_string = load_obj<SettingsString>("settings_string.json");
             ports_cam = settins_string.ports_cam;
-
+            ListAllCamerasButton_Click();
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
             //save_obj("settings_string.json", set_test);
@@ -86,7 +88,7 @@ namespace tcp_to_udp
             _TCPserver1 = new TCPserver(62000);
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
-            for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
+            for (int i = 0; i < 1; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
 
         }
 
@@ -303,7 +305,7 @@ namespace tcp_to_udp
             // Параметры UDP
 
             int clientPort = port; // Порт клиента
-            _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию  //
+            _cameras[ind] = new VideoCapture("@device:pnp:\\\\?\\usb#USB#VID_09DA&PID_2695&MI_00#9&26DAA0E0&1&0000#{65E8773D-8F56-11D0-A3B9-00A0C9223196", VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию  //
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth,640);
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, 480);
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);
@@ -410,6 +412,36 @@ namespace tcp_to_udp
                 return default(T);
             }
 
+        }
+
+        public List<DsDevice> GetVideoInputDevices()
+        {
+            // Возвращает список устройств категории VideoInputDevice
+            return DsDevice.GetDevicesOfCat(FilterCategory.VideoInputDevice).ToList();
+        }
+
+        // Пример использования
+        private void ListAllCamerasButton_Click()
+        {
+            var devices = GetVideoInputDevices();
+            for (int i = 0; i < devices.Count; i++)
+            {
+                Console.WriteLine($"Camera Index: {i}, Name: {devices[i].DevicePath}");
+            }
+        }
+
+        // Как открыть камеру по имени
+        private VideoCapture OpenCameraByName(string cameraName)
+        {
+            var devices = GetVideoInputDevices();
+            for (int i = 0; i < devices.Count; i++)
+            {
+                if (devices[i].Name.Contains(cameraName))
+                {
+                    return new VideoCapture(i); // Индекс в DirectShowLib соответствует индексу в Emgu CV
+                }
+            }
+            return null; // Устройство не найдено
         }
 
     }
