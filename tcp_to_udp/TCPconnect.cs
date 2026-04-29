@@ -133,7 +133,7 @@ namespace tcp_to_udp
         private static StringBuilder _response;
         private static NetworkStream _stream;
         public bool connected = false;
-       public IPAddress remoteIPAddress = null;
+        public IPAddress remoteIPAddress = null;
         public IPEndPoint remoteIpEndPoint = null;
 
         public TCPserver(int _port)
