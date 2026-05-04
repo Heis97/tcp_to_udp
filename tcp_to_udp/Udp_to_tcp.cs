@@ -219,7 +219,7 @@ namespace tcp_to_udp
                             {
                                 var com_cur = "N" + cur_num_ins + " " + commands1[0].com;
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur); 
-                                udp_client1.SendAsync(mes_out, mes_out.Length);
+                                udp_client1.Send(mes_out, mes_out.Length);
                                 
                                 //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
@@ -281,7 +281,7 @@ namespace tcp_to_udp
                             {
                                 var com_cur = "N" + cur_num_ins + " " + commands2[0].com;
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur);
-                                udp_client2.SendAsync(mes_out, mes_out.Length);
+                                udp_client2.Send(mes_out, mes_out.Length);
 
                                 Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
