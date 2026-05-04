@@ -59,7 +59,7 @@ namespace tcp_to_udp
         {
             var settins_string = load_obj<SettingsString>("settings_string.json");
             ports_cam = settins_string.ports_cam;
-            ListAllCamerasButton_Click();
+            //ListAllCamerasButton_Click();
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
             //save_obj("settings_string.json", set_test);
@@ -88,7 +88,7 @@ namespace tcp_to_udp
             _TCPserver1 = new TCPserver(62000);
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
-            for (int i = 0; i < 1; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
+            for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
 
         }
 
@@ -107,6 +107,7 @@ namespace tcp_to_udp
 
             long count_send1 = 0;
             long count_send2 = 0;
+            bool err_con_tcp = false;
             while (udp_client1 != null && udp_client2 != null)
             {
                 // Console.WriteLine("recive udp");
@@ -118,12 +119,15 @@ namespace tcp_to_udp
 
                 if (_TCPserver1.connected)
                 {
-                    var data = _TCPserver1.getBuffer();
-                    if (data.Length > 3)
+                    err_con_tcp = true;
+                    //data =;
+                    if (_TCPserver1.getBufferLen() > 3)
                     {
+                        var data = _TCPserver1.getBuffer();
+                        Console.WriteLine("data bef: " + data);
                         data = data.Replace('\r', ' ');
                         var coms = data.Trim().Split('\n');
-                        //Console.WriteLine("data: " + data);
+                        Console.WriteLine("data: " + data);
                         foreach (var command in coms)
                         {
                             Console.WriteLine("command: " + command);
@@ -164,6 +168,15 @@ namespace tcp_to_udp
 
                         }
                     }
+                }
+                else
+                {
+                    if(err_con_tcp)
+                    {
+                        Console.WriteLine("not connected interface");
+                        err_con_tcp = false;
+                    }
+                    
                 }
                 if (udp_client1.Available > 0)
                 {
@@ -207,7 +220,7 @@ namespace tcp_to_udp
                                 var com_cur = "N" + cur_num_ins + " " + commands1[0].com;
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur); 
                                 udp_client1.SendAsync(mes_out, mes_out.Length);
-                                        
+                                
                                 //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
                             else if (cur_num_ins == cur_num_board)
@@ -270,7 +283,7 @@ namespace tcp_to_udp
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur);
                                 udp_client2.SendAsync(mes_out, mes_out.Length);
 
-                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
@@ -305,7 +318,8 @@ namespace tcp_to_udp
             // Параметры UDP
 
             int clientPort = port; // Порт клиента
-            _cameras[ind] = new VideoCapture("@device:pnp:\\\\?\\usb#USB#VID_09DA&PID_2695&MI_00#9&26DAA0E0&1&0000#{65E8773D-8F56-11D0-A3B9-00A0C9223196", VideoCapture.API.DShow); // 0 - индекс камеры по умолчанию  //
+            //_cameras[ind] = new VideoCapture("@device:pnp:\\\\?\\usb#USB#VID_09DA&PID_2695&MI_00#9&26DAA0E0&1&0000#{65E8773D-8F56-11D0-A3B9-00A0C9223196", VideoCapture.API.DShow);
+            _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow);// 0 - индекс камеры по умолчанию  //
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth,640);
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, 480);
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);

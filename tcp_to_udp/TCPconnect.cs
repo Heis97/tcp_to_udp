@@ -128,7 +128,9 @@ namespace tcp_to_udp
     public class TCPserver
     {
         int port; // порт для прослушивания подключений
-        string buffer_in = "";
+        volatile StringBuilder buffer_in = new StringBuilder();
+        volatile int len;
+        //string buffer_in = "";
         string buffer_out = "";
         private static StringBuilder _response;
         private static NetworkStream _stream;
@@ -139,18 +141,25 @@ namespace tcp_to_udp
         public TCPserver(int _port)
         {
             port = _port;
-            buffer_in = "";
+            buffer_in = new StringBuilder();
             buffer_out = "";
             remoteIPAddress = IPAddress.Parse("127.0.0.1");
             remoteIpEndPoint = new IPEndPoint(remoteIPAddress, 62000);
         }
         public string getBuffer()
         {
+            
             var ret = buffer_in;
-            buffer_in = "";
-            return ret;
+            buffer_in = new StringBuilder();
+            len = 0;
+            //Console.WriteLine("getBuffer: " + ret);
+            return ret.ToString();
         }
+        public int getBufferLen()
+        {
 
+            return len;
+        }
         public void pushBuffer(string data)
         {
             //Console.Write(data);
@@ -196,11 +205,11 @@ namespace tcp_to_udp
             var res = reseav();
             if (res != null)
             {
-
                 if (res.Length > 3)
                 {
-                    //Console.WriteLine(res);
-                    buffer_in += res;
+                    Console.WriteLine("res: " + res);
+                    buffer_in.Append(res);
+                    len = buffer_in.ToString().Length;
                 }
             }
 
