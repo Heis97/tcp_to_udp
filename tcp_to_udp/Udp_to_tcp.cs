@@ -235,8 +235,7 @@ namespace tcp_to_udp
                                         
                                 //Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
                             }                                
-                        }
-                            
+                        }                            
                     }
                 }
 
