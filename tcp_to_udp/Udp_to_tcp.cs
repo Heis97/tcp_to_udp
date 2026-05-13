@@ -89,6 +89,12 @@ namespace tcp_to_udp
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
             for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
+            while(true)
+            {
+                string input = Console.ReadLine();
+                Console.WriteLine(input);
+            }
+            
 
         }
 
@@ -354,6 +360,7 @@ namespace tcp_to_udp
                     //CvInvoke.Resize(frame, frame, new Size(640, 480));
                     if (!frame.IsEmpty)
                     {
+
                         byte[] jpegBytes = FrameToJpegBytesEmgu(frame);
                         //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
                         if(jpegBytes.Length<65000)
