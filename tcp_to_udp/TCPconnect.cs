@@ -165,6 +165,14 @@ namespace tcp_to_udp
             //Console.Write(data);
             buffer_out += data;
         }
+
+        public void pushBuffer_in(string data)
+        {
+            //Console.Write(data);
+            buffer_in.Append(data);
+            len = buffer_in.ToString().Length;
+            
+        }
         public void send_mes(string send_prog)
         {
             try

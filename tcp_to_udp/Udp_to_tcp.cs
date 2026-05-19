@@ -54,11 +54,16 @@ namespace tcp_to_udp
         bool initing2 = false;
 
 
-        int[] ports_cam = { 5000, 5001, 5002 };
+        volatile int[] ports_cam_orig = { 5000, 5001, 5002 };//bef, aft, pound
+        volatile int[] ports_cam = { 5000, 5001, 5002 };
+
+        volatile Mat[] last_frame = new Mat[3];
+
+        //int[] ports_cam = { 5000, 5001, 5002 };
         public void connect_udp_all()
         {
             var settins_string = load_obj<SettingsString>("settings_string.json");
-            ports_cam = settins_string.ports_cam;
+            //ports_cam = settins_string.ports_cam;
             //ListAllCamerasButton_Click();
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
@@ -70,8 +75,6 @@ namespace tcp_to_udp
             var port_udp1 = 52000;
             udp_addres_1 = new IPEndPoint(IPAddress.Parse(ip1), port_udp1);
             udp_client1.Connect(udp_addres_1);
-
-
 
             udp_client2 = null;
             GC.Collect();
@@ -91,13 +94,14 @@ namespace tcp_to_udp
             for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
             while(true)
             {
-                string input = Console.ReadLine();
-                Console.WriteLine(input);
-            }
-            
-
+                string? input = Console.ReadLine();
+                if (input != null)
+                {
+                    _TCPserver1.pushBuffer_in(input +"\n");
+                    Console.WriteLine(input);
+                }              
+            } 
         }
-
 
         List<string> coms1 = new List<string>();
         List<string> coms2 = new List<string>();
@@ -139,7 +143,7 @@ namespace tcp_to_udp
                             Console.WriteLine("command: " + command);
                             if (command.Length > 3)
                             {
-                                if (command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
+                                if (command.Contains("M585") || command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
                                 {
                                     Console.WriteLine("add com1: " + command);
                                     commands1.Add(new Command(command_counter1, command));
@@ -151,7 +155,7 @@ namespace tcp_to_udp
                                     commands2.Add(new Command(command_counter2, command));
                                     command_counter2++;
                                 }
-                                else if (command.Contains("M590"))
+                                else if (command.Contains("M590")|| command.Contains("M591"))
                                 {
 
                                     //Console.WriteLine("add com3: " + command);
@@ -162,16 +166,24 @@ namespace tcp_to_udp
                                     if (vars.Length > 2)
                                     {
                                         var ind_cam = Convert.ToInt32(vars[1]);
-                                        var exp_cam = Convert.ToInt32(vars[2]);
-                                        Console.WriteLine(ind_cam + " " + exp_cam);
-                                        _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, exp_cam);
-                                        //coms2.Add(command);
+                                        var val = Convert.ToInt32(vars[2]);
+                                        Console.WriteLine(ind_cam + " " + val);
+                                        if (command.Contains("M590"))
+                                        {
+                                            _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
+                                        }
+                                        else if(command.Contains("M591"))
+                                        {
+                                            ports_cam[ind_cam] = val;
+                                        }
                                     }
-
+                                }
+                                else if (command.Contains("M592"))
+                                {
+                                    var auto_set_cams = new Thread(auto_setup_cams);
+                                    auto_set_cams.Start();
                                 }
                             }
-                                
-
                         }
                     }
                 }
@@ -341,14 +353,14 @@ namespace tcp_to_udp
             }
 
             Console.WriteLine("Начало видеопотока через UDP...  "+ind);
-            Thread streamThread = new Thread(() => StreamVideo(port,ind));
+            Thread streamThread = new Thread(() => StreamVideo(ind));
             streamThread.Start();
 
             _isStreaming[ind] = true;
             return streamThread;
         }
 
-        void StreamVideo(int port,int ind)
+        void StreamVideo(int ind)
         {
             using (UdpClient udpSender = new UdpClient())
             {
@@ -357,6 +369,7 @@ namespace tcp_to_udp
                 while (_isStreaming[ind])
                 {
                     _cameras[ind].Read(frame);
+                    last_frame[ind] = frame.Clone();
                     //CvInvoke.Resize(frame, frame, new Size(640, 480));
                     if (!frame.IsEmpty)
                     {
@@ -365,7 +378,7 @@ namespace tcp_to_udp
                         //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
                         if(jpegBytes.Length<65000)
                         {
-                            udpSender.Send(jpegBytes, jpegBytes.Length, new IPEndPoint(_TCPserver1.get_client().Address, port));
+                            udpSender.Send(jpegBytes, jpegBytes.Length, new IPEndPoint(_TCPserver1.get_client().Address, ports_cam[ind]));
                         }
                        
                       
@@ -377,7 +390,60 @@ namespace tcp_to_udp
                 }
             }
         }
+        public void auto_setup_cams()
+        {
+            var frms_st =(Mat[]) last_frame.Clone();
+            CvInvoke.Imshow("st1", frms_st[1]);
+            _TCPserver1.pushBuffer_in("M585 A R0\n");
+            _TCPserver1.pushBuffer_in("M585 C R0\n");
+            Thread.Sleep(500);
+            _TCPserver1.pushBuffer_in("M585 A R255\n");
+            Thread.Sleep(500);
+            var frms_bef = (Mat[])last_frame.Clone();
+            CvInvoke.Imshow("bef1", frms_bef[1]);
+            Thread.Sleep(500);
+            _TCPserver1.pushBuffer_in("M585 A R0\n");
+            Thread.Sleep(500);
+            _TCPserver1.pushBuffer_in("M585 C R255\n");
+            Thread.Sleep(500);
+            _TCPserver1.pushBuffer_in("M585 C R0\n");
+            var frms_aft = (Mat[])last_frame.Clone();
 
+            var delt_bef = comp_delt_mats(frms_st, frms_bef);
+            var delt_aft = comp_delt_mats(frms_st, frms_aft);
+
+            int maxIndex_bef = Array.IndexOf(delt_bef, delt_bef.Max());
+            int maxIndex_aft = Array.IndexOf(delt_aft, delt_aft.Max());
+
+            ports_cam[maxIndex_bef] = 5000;
+            ports_cam[maxIndex_aft] = 5001;
+            var vals_used = new bool[] { false, false, false };
+            vals_used[maxIndex_bef] = true;
+            vals_used[maxIndex_aft] = true;
+            for(int i=0; i<vals_used.Length;i++)
+            {
+                if (!vals_used[i])
+                {
+                    ports_cam[i] = 5002;
+                }
+            }
+        }
+
+        public static double[] comp_delt_mats(Mat[] frames_st, Mat[] frames_past)
+        {
+            var delts = new double[frames_st.Length];
+            for(int i=0; i<frames_st.Length;i++)
+            {
+                if(frames_past[i]!=null && frames_st[i]!=null)
+                {
+                    Mat delt_mat = frames_past[i] - frames_st[i];
+                    CvInvoke.CvtColor(delt_mat, delt_mat, ColorConversion.Rgb2Gray);
+                    delts[i] = delt_mat.ToImage<Gray, byte>().GetAverage().Intensity;
+                }
+                
+            }
+            return delts;
+        }
 
         static byte[] FrameToJpegBytesEmgu(Mat frame, int quality = 70)
         {
