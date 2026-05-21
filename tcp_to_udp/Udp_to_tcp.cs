@@ -17,17 +17,26 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using WinRT.Interop;
+using System.Diagnostics;
 
 using Encoder = System.Drawing.Imaging.Encoder;
 
 namespace tcp_to_udp
 {
      class Udp_to_tcp
-    {
+     {
 
         private static bool[] _isStreaming = new bool[3];
         private static VideoCapture[] _cameras = new VideoCapture[3];
 
+        TCPclient tcp_client_main;
+        int device_numb = 0;
+        int string_sec_remain = 0;
+        int port_main = 6000;
+        string ip_main = "192.168.1.200";
+
+        long last_ms = 0;
+        bool host_send = false;
 
         UdpClient udp_client1;
         IPEndPoint udp_addres_1;
@@ -68,6 +77,9 @@ namespace tcp_to_udp
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
             //save_obj("settings_string.json", set_test);
+            device_numb = settins_string.device_num;
+            tcp_client_main = null;
+
             udp_client1 = null;
             GC.Collect();
             udp_client1 = new UdpClient(50000);
@@ -91,6 +103,15 @@ namespace tcp_to_udp
             _TCPserver1 = new TCPserver(62000);
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
+
+            tcp_client_main = new TCPclient();
+           // Console.WriteLine("start con");
+            tcp_client_main.Connection(port_main, ip_main);
+
+            Process.Start("String_line4.exe");
+
+
+            //Console.WriteLine("start con done");
             for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
             while(true)
             {
@@ -98,7 +119,7 @@ namespace tcp_to_udp
                 if (input != null)
                 {
                     _TCPserver1.pushBuffer_in(input +"\n");
-                    Console.WriteLine(input);
+                    //Console.WriteLine(input);
                 }              
             } 
         }
@@ -110,6 +131,9 @@ namespace tcp_to_udp
         List<Command> commands2 = new List<Command>();
         long command_counter1 = 0;
         long command_counter2 = 0;
+
+        volatile int string_is_ending = 0;
+        volatile int pound_is_ending = 0;
 
         void recieve_udp_all()
         {
@@ -134,10 +158,10 @@ namespace tcp_to_udp
                     if (_TCPserver1.getBufferLen() > 3)
                     {
                         var data = _TCPserver1.getBuffer();
-                        Console.WriteLine("data bef: " + data);
+                        //Console.WriteLine("data bef: " + data);
                         data = data.Replace('\r', ' ');
                         var coms = data.Trim().Split('\n');
-                        Console.WriteLine("data: " + data);
+                        //Console.WriteLine("data: " + data);
                         foreach (var command in coms)
                         {
                             Console.WriteLine("command: " + command);
@@ -149,7 +173,7 @@ namespace tcp_to_udp
                                     commands1.Add(new Command(command_counter1, command));
                                     command_counter1++;
                                 }
-                                else if (command.Contains("M585") || command.Contains("M581"))
+                                if (command.Contains("M585") || command.Contains("M581"))
                                 {
                                     Console.WriteLine("add com2: " + command);
                                     commands2.Add(new Command(command_counter2, command));
@@ -167,7 +191,7 @@ namespace tcp_to_udp
                                     {
                                         var ind_cam = Convert.ToInt32(vars[1]);
                                         var val = Convert.ToInt32(vars[2]);
-                                        Console.WriteLine(ind_cam + " " + val);
+                                        //Console.WriteLine(ind_cam + " " + val);
                                         if (command.Contains("M590"))
                                         {
                                             _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
@@ -182,6 +206,25 @@ namespace tcp_to_udp
                                 {
                                     var auto_set_cams = new Thread(auto_setup_cams);
                                     auto_set_cams.Start();
+                                }
+
+                                else if (command.Contains("M593"))
+                                {
+                                    
+                                    tcp_client_main.Connection(port_main, ip_main);
+                                }
+
+                                else if (command.Contains("M594"))
+                                {
+                                    var val = val_from_command(command);
+                                    string_is_ending = val;
+                                    tcp_client_main.send_mes(device_numb + "" + string_is_ending+""+ pound_is_ending);
+                                }
+                                else if (command.Contains("M595"))
+                                {
+                                    var val = val_from_command(command);
+                                    pound_is_ending = val;
+                                    tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
                                 }
                             }
                         }
@@ -204,11 +247,36 @@ namespace tcp_to_udp
 
                     long dtime = DateTime.Now.Ticks - last_time_1;
                     last_time_1 = DateTime.Now.Ticks;
+
+                    var cur_time_ms = DateTime.Now.Millisecond;
+
+                    var dtime_ms = cur_time_ms - last_ms;
+                    //Console.WriteLine(dtime_ms);
+                    if(DateTime.Now.Millisecond > 500)
+                    {
+                        if(!host_send)
+                        {
+                            //Console.WriteLine(dtime_ms);
+                            var mes_serv = device_numb + "" + string_is_ending + "" + pound_is_ending;
+                            //Console.WriteLine("send server " + mes_serv);
+                            tcp_client_main.send_mes(mes_serv);
+                            host_send = true;
+
+                        }
+
+                    }
+                    else
+                    {
+                        host_send = false;
+                    }
+
                     if (dtime > 5000000)
                     {
                         initing1 = false;
                         Console.WriteLine("init 1 re:" + dtime+" "+ (last_time_1- start_time));
                     }
+
+
                     //Console.WriteLine(DateTime.Now.Ticks);
                     var mes = Encoding.ASCII.GetString(res) + "\n";
                     if (res != null)
@@ -219,9 +287,62 @@ namespace tcp_to_udp
                         }
                         //Console.WriteLine(mes);
                         // Console.WriteLine("len1: " + coms1.Count);
+                        var vars_from_mes = mes.Split(' ');
+                        var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
+                        //Console.WriteLine(vars_from_mes.Length);
+                        if (vars_from_mes.Length >= 6)
+                        {
+                            try
+                            {
+                                if ((long)Convert.ToDouble(vars_from_mes[2]) == 8)
+                                {
+                                    
+                                    var secs_rem = (int)Convert.ToDouble(vars_from_mes[6]);
+                                    var mins_rem = (int)(secs_rem / (double)60);
+                                    //Console.WriteLine(mes+" "+ secs_rem+" "+ mins_rem);
+                                    if (mins_rem > 0 && mins_rem < 10)
+                                    {
+                                        string_is_ending = mins_rem;
+                                    }
+
+
+                                }
+                            }
+                            catch
+                            {
+
+                            }
+                        }
                         if (commands1.Count > 0)
                         {
-                            var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
+                            /*var vars_from_mes = mes.Split(' ');
+                            var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
+                            Console.WriteLine(vars_from_mes.Length);
+                            if (vars_from_mes.Length>=6)
+                            {
+                                try
+                                {
+                                    if ((long)Convert.ToDouble(vars_from_mes[2]) == 8) 
+                                    {
+                                        Console.WriteLine(mes);
+                                        var secs_rem = (int)Convert.ToDouble(vars_from_mes[5]);
+                                        var mins_rem = (int)(secs_rem /(double) 60);
+                                        if(mins_rem>0 &&  mins_rem<10)
+                                        {
+                                            string_is_ending = mins_rem;
+                                        }
+                                        
+                                        
+                                    }
+                                }
+                                catch
+                                {
+
+                                }
+                            }*/
+                            
+
+                           // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
                             //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                             var cur_num_ins = commands1[0].num - count_send1;
                             if (!initing1)
@@ -291,7 +412,7 @@ namespace tcp_to_udp
                                 count_send2 = commands2[0].num - cur_num_board - 1;
                                 cur_num_ins = commands2[0].num - count_send2;
                                 //Console.WriteLine("count_send1 " + count_send1 + ";cur_num_ins " + cur_num_ins + "; cur_num_board " + cur_num_board + "; commands1[0].num " + commands1[0].num);
-                                Console.WriteLine("init 2 f:" + dtime + " " + (last_time_2 - start_time));
+                                //Console.WriteLine("init 2 f:" + dtime + " " + (last_time_2 - start_time));
                             }
 
                             if (cur_num_ins - 1 == cur_num_board)
@@ -300,7 +421,7 @@ namespace tcp_to_udp
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur);
                                 udp_client2.Send(mes_out, mes_out.Length);
 
-                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
@@ -329,7 +450,13 @@ namespace tcp_to_udp
 
 
         }
-
+        static int val_from_command(string cmd)
+        {
+            var command_af = cmd.Replace("  ", " ");
+            var vars = command_af.Trim().Split(' ');
+            var var = Convert.ToInt32(vars[1]);
+            return var;
+        }
         Thread start_cam(int ind,int port)
         {
             // Параметры UDP
@@ -548,10 +675,11 @@ namespace tcp_to_udp
     {
 
         public int[] ports_cam;
-
+        public int device_num;//0...9
         public SettingsString()
         {
-           // ports_cam = new int[3] { 5000, 5001, 5002 };
+            ports_cam = new int[3] { 5000, 5001, 5002 };
+            device_num = 0;
         }
 
     }

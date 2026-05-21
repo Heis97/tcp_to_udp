@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Windows.Media.Protection.PlayReady;
 
+
 namespace tcp_to_udp
 {
     class TCPclient
@@ -67,9 +68,18 @@ namespace tcp_to_udp
         }
         public void send_mes(string send_prog)
         {
-            byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
-            _stream?.Write(send, 0, send.Length);
-            Console.WriteLine(send_prog);
+            try
+            {
+                //Console.WriteLine(send_prog);
+                byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
+                _stream?.Write(send, 0, send.Length);
+            }
+            catch
+            {
+
+            }
+            
+           
         }
         public void close_con()
         {
