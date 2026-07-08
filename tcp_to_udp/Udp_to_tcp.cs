@@ -148,7 +148,7 @@ namespace tcp_to_udp
                 int com_num = 0;
                 bool parsed_val = false;
 
-
+                //Console.Clear();
                 //coms2 = new List<string>();
 
                 if (_TCPserver1.connected)
@@ -283,6 +283,7 @@ namespace tcp_to_udp
                     {
                         if (_TCPserver1.connected)
                         {
+                            //_TCPserver1.send_mes(mes);
                             _TCPserver1.pushBuffer(mes);
                         }
                         //Console.WriteLine(mes);
@@ -305,6 +306,14 @@ namespace tcp_to_udp
                                         string_is_ending = mins_rem;
                                     }
 
+                                }
+
+                                if ((long)Convert.ToDouble(vars_from_mes[2]) == 6)
+                                {
+
+                                    
+                                    Console.Clear();
+                                    Console.WriteLine(mes);
 
                                 }
                             }
@@ -401,6 +410,31 @@ namespace tcp_to_udp
                         }
                         //Console.WriteLine(mes);
                         // Console.WriteLine("len1: " + coms1.Count);
+
+                        var vars_from_mes = mes.Split(' ');
+                       // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
+                        //Console.WriteLine(vars_from_mes.Length);
+                        if (vars_from_mes.Length >= 6)
+                        {
+                            try
+                            {
+
+                                if ((long)Convert.ToDouble(vars_from_mes[2]) == 0)
+                                {
+
+
+                                    //Console.Clear();
+                                    Console.WriteLine("2: "+mes);
+
+                                }
+                            }
+                            catch
+                            {
+
+                            }
+                        }
+
+
                         if (commands2.Count > 0)
                         {
                             var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
@@ -440,8 +474,8 @@ namespace tcp_to_udp
                     }
                 }
 
-
-
+                
+                //Console.
                 // if (_TCPserver1.connected) _TCPserver1.handle();
 
                 //if (com_num > 1) Console.WriteLine(com_num);
