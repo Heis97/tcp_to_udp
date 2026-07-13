@@ -142,8 +142,8 @@ namespace tcp_to_udp
         volatile int len;
         //string buffer_in = "";
         string buffer_out = "";
-        private static StringBuilder _response;
-        private static NetworkStream _stream;
+        private StringBuilder _response;
+        private NetworkStream _stream;
         public bool connected = false;
         public IPAddress remoteIPAddress = null;
         public IPEndPoint remoteIpEndPoint = null;
@@ -192,6 +192,7 @@ namespace tcp_to_udp
             }
             catch (System.IO.IOException e ) 
             {
+                Console.WriteLine(e.ToString());
                 wait_client();
             }
             
@@ -208,7 +209,6 @@ namespace tcp_to_udp
                 {
                     int bytes = _stream.Read(data, 0, data.Length);
                     _response.Append(Encoding.UTF8.GetString(data, 0, bytes));
-
                 }
                 while (_stream.DataAvailable);
 
