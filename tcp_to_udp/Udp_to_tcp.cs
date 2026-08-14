@@ -108,9 +108,10 @@ namespace tcp_to_udp
             var port_udp2 = 52100;
             udp_addres_2 = new IPEndPoint(IPAddress.Parse(ip2), port_udp2);
             udp_client2.Connect(udp_addres_2);
-
-           // for (int i = 0; i < 100000; i++) commands1.Add(new Command(1 + i, "M584 I0 J-" + ( Math.Round( i * 0.01,3)).ToString()));
-
+            
+            for (int i = 0; i < 100; i++) commands1.Add(new Command( i, "M588 X5 Y100 Z100 E100 W50"));// J-" + ( Math.Round( i * 0.01,3)).ToString()));
+            commands1.Add(new Command(100, "M588 A1"));
+            commands1.Add(new Command(101, "M588 A1"));
             udp_thread = new Thread(recieve_udp_all);
             udp_thread.Start();
 
@@ -124,7 +125,7 @@ namespace tcp_to_udp
            // Console.WriteLine("start con");
            // tcp_client_main.Connection(port_main, ip_main);
 
-            Process.Start("String_line4.exe");
+            //Process.Start("String_line4.exe");
 
             
 
@@ -178,7 +179,7 @@ namespace tcp_to_udp
                             Console.WriteLine("command: " + command);
                             if (command.Length > 3)
                             {
-                                if (command.Contains("M585") || command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587"))
+                                if (command.Contains("M585") || command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587") || command.Contains("M588"))
                                 {
                                     Console.WriteLine("add com1: " + command);
                                     commands1.Add(new Command(command_counter1, command));
@@ -363,7 +364,7 @@ namespace tcp_to_udp
                             
 
                            // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
-                           // Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + commands1[0].com);
+                            Console.WriteLine("send1 com pre: " + cur_num_board + "/" + count_send1 + " " + commands1[0].com);
                             var cur_num_ins = commands1[0].num - count_send1;
                             if (!initing1)
                             {
