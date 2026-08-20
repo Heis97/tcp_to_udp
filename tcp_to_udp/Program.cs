@@ -17,7 +17,6 @@ namespace tcp_to_udp
             }
             catch (Exception ex)
             {
-                // Выводим ошибку красным цветом для наглядности
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Критическая ошибка: {ex.Message}");
                 Console.ResetColor();

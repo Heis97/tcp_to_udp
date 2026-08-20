@@ -23,8 +23,8 @@ using Encoder = System.Drawing.Imaging.Encoder;
 
 namespace tcp_to_udp
 {
-     class Udp_to_tcp
-     {
+    class Udp_to_tcp
+    {
 
         private static bool[] _isStreaming = new bool[3];
         private static VideoCapture[] _cameras = new VideoCapture[3];
@@ -109,7 +109,7 @@ namespace tcp_to_udp
             udp_addres_2 = new IPEndPoint(IPAddress.Parse(ip2), port_udp2);
             udp_client2.Connect(udp_addres_2);
             
-            for (int i = 0; i < 100; i++) commands1.Add(new Command( i, "M588 X5 Y100 Z100 E100 W50"));// J-" + ( Math.Round( i * 0.01,3)).ToString()));
+            for (int i = 0; i < 100; i++) commands1.Add(new Command( i, "M588 X5 Y100 Z100 E100 W100"));// J-" + ( Math.Round( i * 0.01,3)).ToString()));
             commands1.Add(new Command(100, "M588 A1"));
             commands1.Add(new Command(101, "M588 A1"));
             udp_thread = new Thread(recieve_udp_all);
@@ -674,37 +674,13 @@ namespace tcp_to_udp
 
         }
 
-        public List<DsDevice> GetVideoInputDevices()
-        {
-            // Возвращает список устройств категории VideoInputDevice
-            return DsDevice.GetDevicesOfCat(FilterCategory.VideoInputDevice).ToList();
-        }
 
-        // Пример использования
-        private void ListAllCamerasButton_Click()
-        {
-            var devices = GetVideoInputDevices();
-            for (int i = 0; i < devices.Count; i++)
-            {
-                Console.WriteLine($"Camera Index: {i}, Name: {devices[i].DevicePath}");
-            }
-        }
-
-        // Как открыть камеру по имени
-        private VideoCapture OpenCameraByName(string cameraName)
-        {
-            var devices = GetVideoInputDevices();
-            for (int i = 0; i < devices.Count; i++)
-            {
-                if (devices[i].Name.Contains(cameraName))
-                {
-                    return new VideoCapture(i); // Индекс в DirectShowLib соответствует индексу в Emgu CV
-                }
-            }
-            return null; // Устройство не найдено
-        }
 
     }
+
+
+
+
     class Command
     {
 
