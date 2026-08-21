@@ -14,6 +14,7 @@ namespace tcp_to_udp
         public double x { get; set; }
         public double y { get; set; }
         public double z { get; set; }
+
         public bool exist { get; set; }
         public Color3d_GL color { get; set; }
 

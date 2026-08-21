@@ -1758,6 +1758,9 @@ namespace tcp_to_udp
         }
 
 
-
+        public double get_xyz_dist()
+        {
+            return Math.Sqrt(X*X + Y*Y + Z*Z);
+        }
     }
 }

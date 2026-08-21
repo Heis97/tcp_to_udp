@@ -1763,19 +1763,189 @@ namespace tcp_to_udp
 
     public class StepperFrame
     {
-        public StepperFrame()
+        Point3d_GL p_xyz;   //  mm
+        double e;   //  mm
+        double time_abs;  //  sec
+        double vel;         //  mm/sec
+        
+        /*public StepperFrame(RobotFrame _frame, double _time)
         {
-
+            frame = _frame;
+            time = _time;
+        }*/
+        
+        public StepperFrame(Point3d_GL _p_xyz, double _e, double _vel, double time = 0)
+        {
+            p_xyz = _p_xyz;
+            e = _e;
+            vel = _vel;
+            time_abs = time;
         }
 
-
-        public static StepperFrame[] frames_divide(StepperFrame[] frames)
+        static public double calc_time(StepperFrame fr1, StepperFrame fr2)
         {
+            var dist = (fr1.p_xyz-fr2.p_xyz).magnitude();
+            if(dist ==0) dist = Math.Abs (fr1.e - fr2.e);
+            return dist * fr2.vel;
+        }
+        static public StepperFrame[] frame_divide(StepperFrame frame_prev, StepperFrame frame_cur, double min_dist = 0.1)
+        {
+            if (min_dist == 0) return null;
+            var dist = (frame_prev.p_xyz - frame_cur.p_xyz).magnitude();
+            if(dist==0) dist = Math.Abs(frame_prev.e - frame_cur.e);
+            var div_nums = (int)(dist / min_dist);
+            if (div_nums < 2) {
+                return new StepperFrame[] { frame_cur };
+            }
+            var d_dist = (frame_prev.p_xyz - frame_cur.p_xyz)/div_nums;
+            var d_e = (frame_prev.e - frame_cur.e) / div_nums;
+            var d_t = (frame_prev.time_abs - frame_cur.time_abs) / div_nums;
 
+            var frames = new List<StepperFrame>();
+            var p_xyz_stop = frame_cur.p_xyz;
+            var e_stop = frame_cur.e;
+            var t_stop = frame_cur.time_abs;
+            for( var i = div_nums-1; i > 0; i--)
+            {
+                var p_xyz_div = p_xyz_stop + d_dist * i;
+                var e_div = e_stop + d_e * i;
+                var t_div = t_stop + d_t * i;
+                frames.Add(new StepperFrame(p_xyz_div, e_div, frame_cur.vel, t_div));
+            }
+
+            frames.Add(frame_cur);
 
             return frames.ToArray();
         }
+
+        public static StepperFrame[] frames_calc_time(StepperFrame[] frames)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            var time_abs = 0d;
+            for (var i = 1; i < frames.Length; i++)
+            {
+                var dtime = calc_time(frames[i - 1], frames[i]);
+                time_abs += dtime;
+                frames[i].time_abs = time_abs;
+            }
+
+            return frames;
+        }
+
+
+        public static StepperFrame[] frames_smooth(StepperFrame[] frames,int wind)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            var frames_smooth = new List<StepperFrame>();
+            var frames_orig = frames.ToList();
+            for (var i = 0; i < frames.Length; i++)
+            {
+                var i_min = i - wind; if(i_min<0) i_min = 0;
+                var i_max = i + wind; if(i_max >= frames.Length) i_max = frames.Length-1;
+                var wind_real = i_max - i_min;
+                frames_smooth.Add(frame_aver(frames_orig.GetRange(i_min, wind_real).ToArray(), frames_orig[i]));
+            }
+
+            return frames_smooth.ToArray();
+        }
+
+        public static StepperFrame frame_aver(StepperFrame[] frames, StepperFrame frame_ref)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            var frame_aver = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0, 0);
+
+            for (var i = 0; i < frames.Length; i++)
+            {
+                frame_aver.p_xyz += frames[i].p_xyz;
+                frame_aver.e += frames[i].e;
+            }
+
+            frame_aver.p_xyz /= frames.Length;
+            frame_aver.e /= frames.Length;
+            frame_aver.time_abs = frame_ref.time_abs;
+
+            return frame_aver;
+        }
+
+
+        public static StepperFrame[] frames_divide(StepperFrame[] frames, double min_dist = 0.1)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            var frames_div = new List<StepperFrame>();
+            for( var i = 1; i<frames.Length; i++)
+            {
+                var div = frame_divide(frames[i-1], frames[i], min_dist);
+                if(div != null)  frames_div.AddRange(div);
+            }
+
+            return frames_div.ToArray();
+        }
+
+        public static StepperFrame frame_convert_to_steps(StepperFrame frame, Point3d_GL p_xyz_steps, double e_steps, double t_coef)
+        {
+            frame.p_xyz.x *= (int)p_xyz_steps.x;
+            frame.p_xyz.y *= (int)p_xyz_steps.y;
+            frame.p_xyz.z *= (int)p_xyz_steps.z;
+            frame.e       *= (int)e_steps;
+            frame.time_abs*= (int)t_coef;
+            return frame;
+        }
+
+        public static StepperFrame[] frames_convert_to_steps(StepperFrame[] frames, Point3d_GL p_xyz_steps, double e_steps, double t_coef)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            var frames_conv = new List<StepperFrame>();
+            for (var i = 0; i < frames.Length; i++)
+            {
+                frames_conv.Add(frame_convert_to_steps(frames[i], p_xyz_steps,  e_steps, t_coef));                
+            }
+
+            return frames_conv.ToArray();
+        }
+        //mm*koef = steps
+        //sec*t_koef = count
+        public static StepperFrame[] convert_frames(StepperFrame[] frames, Point3d_GL p_xyz_steps, double e_steps, double t_coef, int wind = 5, double min_dist = 0.1)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            
+            var frames_time = frames_calc_time(frames);
+            var frames_div = frames_divide(frames_time, min_dist);
+            var frames_sm = frames_smooth(frames_div, wind);
+
+            var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
+            return frames_conv.ToArray();
+        }
+
+
+        public static void test()
+        {
+            var fr0 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10,0);
+            var fr1 = new StepperFrame(new Point3d_GL(10, 0, 0),  4,  10, 100);
+            var fr2 = new StepperFrame(new Point3d_GL(20, 10,0),  8,  10, 200);
+            var fr3 = new StepperFrame(new Point3d_GL(30, 0, 0), 12, 10, 300);
+            var def_frames = new StepperFrame[] { fr0, fr1, fr2, fr3 };
+            var stepper_frames = convert_frames(
+                def_frames, new Point3d_GL(100, 100, 100), 
+                100,       //e_step
+                104616.18, //t_koef
+                3,        //wind
+                0.4);      //min_dist
+            
+            for(int i = 0; i < stepper_frames.Length; i++)
+            {
+                Console.WriteLine(i+" "+stepper_frames[i].p_xyz.x+" "+ stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
+            }
+            
+        }
     }
+
+
 
 
     public static class Trajectory
