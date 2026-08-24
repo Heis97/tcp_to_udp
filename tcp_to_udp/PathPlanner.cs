@@ -1760,13 +1760,25 @@ namespace tcp_to_udp
         
 
     }
+    public class StepperPrinter
+    {
 
+
+        public long[] solve_ik(StepperFrame frame)
+        {
+            return new long[] {0,0,0,0};
+        }
+        public StepperFrame solve_fk(long[] pos)
+        {
+            return new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+        }
+    }
     public class StepperFrame
     {
-        Point3d_GL p_xyz;   //  mm
-        double e;   //  mm
-        double time_abs;  //  sec
-        double vel;         //  mm/sec
+        public Point3d_GL p_xyz;   //  mm
+        public double e;   //  mm
+        public double time_abs;  //  sec
+        public double vel;         //  mm/sec
         
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
@@ -1781,12 +1793,15 @@ namespace tcp_to_udp
             vel = _vel;
             time_abs = time;
         }
-
+        public StepperFrame clone()
+        {
+            return new StepperFrame(new Point3d_GL(p_xyz.x, p_xyz.y, p_xyz.z), e, vel, time_abs);
+        }
         static public double calc_time(StepperFrame fr1, StepperFrame fr2)
         {
             var dist = (fr1.p_xyz-fr2.p_xyz).magnitude();
             if(dist ==0) dist = Math.Abs (fr1.e - fr2.e);
-            return dist * fr2.vel;
+            return dist / fr2.vel;
         }
         static public StepperFrame[] frame_divide(StepperFrame frame_prev, StepperFrame frame_cur, double min_dist = 0.1)
         {
@@ -1842,7 +1857,7 @@ namespace tcp_to_udp
             var frames_orig = frames.ToList();
             for (var i = 0; i < frames.Length; i++)
             {
-                var i_min = i - wind; if(i_min<0) i_min = 0;
+                var i_min = i - wind; if(i_min < 0) i_min = 0;
                 var i_max = i + wind; if(i_max >= frames.Length) i_max = frames.Length-1;
                 var wind_real = i_max - i_min;
                 frames_smooth.Add(frame_aver(frames_orig.GetRange(i_min, wind_real).ToArray(), frames_orig[i]));
@@ -1923,25 +1938,32 @@ namespace tcp_to_udp
         }
 
 
-        public static void test()
+        public static string[] test()
         {
-            var fr0 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10,0);
-            var fr1 = new StepperFrame(new Point3d_GL(10, 0, 0),  4,  10, 100);
-            var fr2 = new StepperFrame(new Point3d_GL(20, 10,0),  8,  10, 200);
-            var fr3 = new StepperFrame(new Point3d_GL(30, 0, 0), 12, 10, 300);
-            var def_frames = new StepperFrame[] { fr0, fr1, fr2, fr3 };
+            var fr0 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10);
+            var fr1 = new StepperFrame(new Point3d_GL(10, 0, 0),  4,  10);
+            var fr2 = new StepperFrame(new Point3d_GL(20, 10,0),  8,  10);
+            var fr3 = new StepperFrame(new Point3d_GL(30, 0, 0), 12, 10);
+            var fr4 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10);
+            var fr5 = new StepperFrame(new Point3d_GL(10, 0, 0), 4, 10);
+            var fr6 = new StepperFrame(new Point3d_GL(20, 10, 0), 8, 10);
+            var fr7 = new StepperFrame(new Point3d_GL(30, 0, 0), 12, 10);
+            var def_frames = new StepperFrame[] { fr0, fr1, fr2, fr3, fr4, fr5, fr6, fr7 };
             var stepper_frames = convert_frames(
                 def_frames, new Point3d_GL(100, 100, 100), 
                 100,       //e_step
                 104616.18, //t_koef
                 3,        //wind
-                0.4);      //min_dist
+                0.2);      //min_dist
             
+            var coms = new List<string>();
             for(int i = 0; i < stepper_frames.Length; i++)
             {
                 Console.WriteLine(i+" "+stepper_frames[i].p_xyz.x+" "+ stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
+                var com = "M588 X"+Math.Round(stepper_frames[i].p_xyz.x)+" Y"+ Math.Round(stepper_frames[i].p_xyz.y) + " Z" + Math.Round(stepper_frames[i].p_xyz.z) + " E" + Math.Round(stepper_frames[i].e) + " W" + Math.Round(stepper_frames[i].time_abs);
+                coms.Add(com);
             }
-            
+            return coms.ToArray();
         }
     }
 

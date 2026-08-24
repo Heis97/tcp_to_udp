@@ -397,7 +397,19 @@ namespace tcp_to_udp
         {
             return Math.Sqrt(x * x + y * y + z * z);
         }
-
+        public Point3d_GL add_mask(int ax, double val)
+        {
+            switch (ax)
+            {
+                case 0: x += val; break;
+                case 1: x -= val; break;
+                case 2: y += val; break;
+                case 3: y -= val; break;
+                case 4: z += val; break;
+                case 5: z -= val; break;
+            }
+            return this;
+        }
         public double magnitude_xy()
         {
             return Math.Sqrt(x * x + y * y);
