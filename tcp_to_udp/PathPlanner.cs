@@ -1762,15 +1762,84 @@ namespace tcp_to_udp
     }
     public class StepperPrinter
     {
+        public Point3d_GL p_xyz_steps = new Point3d_GL(100,100,100);
+        public double e_steps = 100;
+        public double t_coef = 104616.18;
 
+        public double R = 100;
+        public double r = 30;
+        public double l = 200;
 
         public long[] solve_ik(StepperFrame frame)
         {
-            return new long[] {0,0,0,0};
+            var p_xyz_ik = new Point3d_GL();
+            p_xyz_ik.x = frame.p_xyz.x * p_xyz_steps.x;
+            p_xyz_ik.y = frame.p_xyz.y * p_xyz_steps.y;
+            p_xyz_ik.z = frame.p_xyz.z * p_xyz_steps.z;
+
+
+
+
+            var e_st = frame.e*e_steps;
+            var time_counts = frame.time_abs*t_coef;
+            var pos = new long[] { 0, 0, 0, 0, 0 };
+            pos[0] = (long)p_xyz_ik.x;
+            pos[1] = (long)p_xyz_ik.y;
+            pos[2] = (long)p_xyz_ik.z;
+            pos[3] = (long)e_st;
+            pos[4] = (long)time_counts;
+
+            return pos;
         }
+        static public double cos(double x)
+        {
+            return Math.Cos(x*180/Math.PI);
+        }
+        static public double sin(double x)
+        {
+            return Math.Sin(x * 180 / Math.PI);
+        }
+        public Point3d_GL delta_ik(Point3d_GL p)
+        {
+            var p_a_cent_off = new Point3d_GL( r * cos(30), - r * sin(30));
+            var p_b_cent_off = new Point3d_GL(-r * cos(30), - r * sin(30));
+            var p_c_cent_off = new Point3d_GL(0,  r);
+
+            var p_a_tower = new Point3d_GL(R * cos(30), -R * sin(30));
+            var p_b_tower = new Point3d_GL(-R * cos(30), -R * sin(30));
+            var p_c_tower = new Point3d_GL(0, R);
+
+            var p_a_cent = p + p_a_cent_off;
+            var p_b_cent = p + p_b_cent_off;
+            var p_c_cent = p + p_c_cent_off;
+
+            var a_z = cross_tower(p_a_cent, p_a_tower,l);
+            var b_z = cross_tower(p_b_cent, p_b_tower, l);
+            var c_z = cross_tower(p_c_cent, p_c_tower, l);
+
+
+
+            return new Point3d_GL(a_z,b_z,c_z);
+        }
+
+        static public double cross_tower(Point3d_GL p_c, Point3d_GL p_tower, double l)
+        {
+            p_tower = p_tower - p_c;
+            var r_xy = p_tower.magnitude_xy();
+            if (r_xy >= l) return -1;
+            var dz = Math.Sqrt(l*l-r_xy*r_xy);
+
+            return p_c.z+dz;
+        }
+
         public StepperFrame solve_fk(long[] pos)
         {
-            return new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+            var p_xyz_fk = new Point3d_GL(0,0,0);
+            p_xyz_fk.x = pos[0] / p_xyz_steps.x;
+            p_xyz_fk.y = pos[1] / p_xyz_steps.y;
+            p_xyz_fk.z = pos[2] / p_xyz_steps.z;
+            var e_fk = e_steps / e_steps;
+            return new StepperFrame(p_xyz_fk, e_fk, 0);
         }
     }
     public class StepperFrame
@@ -1937,6 +2006,18 @@ namespace tcp_to_udp
             return frames_conv.ToArray();
         }
 
+        public static StepperFrame[] convert_frames_v2(StepperFrame[] frames,  int wind = 5, double min_dist = 0.1)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+
+            var frames_time = frames_calc_time(frames);
+            var frames_div = frames_divide(frames_time, min_dist);
+            var frames_sm = frames_smooth(frames_div, wind);
+
+            //var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
+            return frames_sm.ToArray();
+        }
 
         public static string[] test()
         {
@@ -1947,7 +2028,7 @@ namespace tcp_to_udp
             var fr4 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10);
             var fr5 = new StepperFrame(new Point3d_GL(10, 0, 0), 4, 10);
             var fr6 = new StepperFrame(new Point3d_GL(20, 10, 0), 8, 10);
-            var fr7 = new StepperFrame(new Point3d_GL(30, 0, 0), 12, 10);
+            var fr7 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10);
             var def_frames = new StepperFrame[] { fr0, fr1, fr2, fr3, fr4, fr5, fr6, fr7 };
             var stepper_frames = convert_frames(
                 def_frames, new Point3d_GL(100, 100, 100), 
@@ -1960,17 +2041,94 @@ namespace tcp_to_udp
             for(int i = 0; i < stepper_frames.Length; i++)
             {
                 Console.WriteLine(i+" "+stepper_frames[i].p_xyz.x+" "+ stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
-                var com = "M588 X"+Math.Round(stepper_frames[i].p_xyz.x)+" Y"+ Math.Round(stepper_frames[i].p_xyz.y) + " Z" + Math.Round(stepper_frames[i].p_xyz.z) + " E" + Math.Round(stepper_frames[i].e) + " W" + Math.Round(stepper_frames[i].time_abs);
+                var com = "M596 G1 X"+Math.Round(stepper_frames[i].p_xyz.x)+" Y"+ Math.Round(stepper_frames[i].p_xyz.y) + " Z" + Math.Round(stepper_frames[i].p_xyz.z) + " E" + Math.Round(stepper_frames[i].e) + " W" + Math.Round(stepper_frames[i].time_abs);
                 coms.Add(com);
             }
             return coms.ToArray();
         }
+
+        public static string[] convert_g_code(StepperFrame[] orig_g_code, StepperPrinter printer)
+        {
+            var stepper_frames = convert_frames_v2(
+                orig_g_code,
+                3,        //wind
+                0.2);      //min_dist
+
+            var coms = new List<string>();
+            coms.Add("M588 F0");
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
+                var cur_pos = printer.solve_ik(stepper_frames[i]);
+                var com = "M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
+                if (i == 5) coms.Add("M588 A1 D0 C"+ stepper_frames.Length);
+                coms.Add(com);
+            }
+
+            return coms.ToArray();
+        }
+
+        public static StepperFrame[] convert_g_code_to_stepperframes(string[] orig_g_code, StepperPrinter printer)
+        {
+            var coms = new List<StepperFrame>();
+            var p_cur = new Point3d_GL(0, 0, 0);
+            var e_cur = 0d;
+            var vel_cur = 10d;
+            var k_vel = 1d / 60d;//if mm\min
+            for(int i = 0; i < orig_g_code.Length; i++)
+            {
+                var line = orig_g_code[i].Trim();
+                line = line.Replace("  "," ");
+                line = line.Replace("  ", " ");
+                var vals = line.Split(' ');
+                if (vals.Length<2) continue;
+                if (vals[0].Contains("G1") || vals[0].Contains("G0"))
+                {
+                    for(int j = 1; j<vals.Length; j++)
+                    {
+                        if (vals[j].Length<2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'X') p_cur.x = val_parsed;
+                        if (lit == 'Y') p_cur.y = val_parsed;
+                        if (lit == 'Z') p_cur.z = val_parsed;
+                        if (lit == 'E') e_cur = val_parsed;
+                        if (lit == 'F') vel_cur = val_parsed*k_vel;
+                    }
+
+                    coms.Add(new StepperFrame(p_cur.Clone(),e_cur,vel_cur));
+                }
+            }
+
+            return coms.ToArray();
+        }
+        static public StepperFrame add(StepperFrame fr1, StepperFrame fr2)
+        {
+            var fr_sum = fr1.clone();
+            fr_sum.p_xyz.x += fr2.p_xyz.x;
+            fr_sum.p_xyz.y += fr2.p_xyz.y;
+            fr_sum.p_xyz.z += fr2.p_xyz.z;
+            fr_sum.e += fr2.e;
+            return fr_sum;
+        }
+        static public double parse_double(string str)
+        {
+            try
+            {
+                return double.Parse(str);
+            }
+            catch { return double.NaN; }
+        }
+
+
     }
 
 
 
 
-    public static class Trajectory
+        public static class Trajectory
     {
         static public List<List<Point3d_GL>> OptimizeTranzitions(List<List<Point3d_GL>> traj)
         {

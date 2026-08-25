@@ -109,7 +109,7 @@ namespace tcp_to_udp
             udp_addres_2 = new IPEndPoint(IPAddress.Parse(ip2), port_udp2);
             udp_client2.Connect(udp_addres_2);
 
-            var coms_str = StepperFrame.test();
+            
 
 
             
@@ -129,13 +129,13 @@ namespace tcp_to_udp
             server_thread1 = new Thread(_TCPserver1.startServer);
             server_thread1.Start();
 
-            
+            /*var coms_str = StepperFrame.test();
             for (int i = 0; i < coms_str.Length; i++)
             {
-                if(i==20) _TCPserver1.pushBuffer_in("M596 A1 D0 C" + coms_str.Length + "\n");
+                if(i==20) _TCPserver1.pushBuffer_in("M596 G1 A1 D0 C" + coms_str.Length + "\n");
                 _TCPserver1.pushBuffer_in(coms_str[i] + '\n');
-            }
-           
+            }*/
+
 
             //tcp_client_main = new TCPclient();
             // Console.WriteLine("start con");
@@ -181,7 +181,7 @@ namespace tcp_to_udp
 
             long[] cur_pos = new long[]{0, 0, 0, 0};
             StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-
+            StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             var printer = new StepperPrinter();
 
             double jog_xyz_vel = 1;
@@ -221,7 +221,7 @@ namespace tcp_to_udp
 
                                     command_counter1++;
                                 }
-                                if (command.Contains("M585") || command.Contains("M581"))
+                                else if (command.Contains("M585") || command.Contains("M581"))
                                 {
                                     Console.WriteLine("add com2: " + command);
                                     commands2.Add(new Command(command_counter2, command));
@@ -277,21 +277,23 @@ namespace tcp_to_udp
 
                                 else if (command.Contains("M596")) // prog load
                                 {
-                                    var com_re = command.Replace("M596 G1", "M588");
-                                    prog_commands.Add(com_re);//orig
-                                    Console.WriteLine(com_re);
+                                    var com_re = command.Replace("M596 ", "").Trim();
+                                    prog_orig_commands.Add(com_re);
+                                    //prog_commands.Add(com_re);//orig
+                                    //Console.WriteLine(com_re);
                                 }
-                                else if (command.Contains("M597")) // prog clear
-                                {
-                                    prog_commands = new List<string>();
-                                }
+                                
                                 else if (command.Contains("M597"))// prog control
                                 {
                                     var val = val_from_command(command);
+                                    Console.WriteLine("M597 val: "+ val);
                                     if (val == 0)
                                     {
+                                        var frames_orig = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
+                                        prog_commands = StepperFrame.convert_g_code(frames_orig, printer).ToList();
                                         cur_prog_line = 0;
                                         prog_state = programm_state.MOVE;
+                                        Console.WriteLine("move");
                                     }
                                     else if (val == 1)
                                     {
@@ -299,10 +301,15 @@ namespace tcp_to_udp
                                     }
                                     else
                                     {
+                                        _TCPserver1.pushBuffer_in("M588 A0" + "\n");
                                         prog_state = programm_state.STOP;
                                     }
                                 }
-
+                                else if (command.Contains("M598")) // prog clear
+                                {
+                                    prog_commands = new List<string>();
+                                    prog_orig_commands = new List<string>();
+                                }
                                 else if (command.Contains("M610"))//set jog vel
                                 {
                                     var val = val_from_command_d(command);
@@ -316,18 +323,21 @@ namespace tcp_to_udp
                                         var val = val_from_command(command);
                                         var jog_orig = new List<StepperFrame>();
                                         var fr_cur = printer.solve_fk(cur_pos);
-                                        
+                                        fr_cur.vel = jog_xyz_vel;
                                         jog_orig.Add(fr_cur);
                                         var fr_jog = fr_cur.clone();
                                         fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, 100);
                                         jog_orig.Add(fr_jog);
-                                        
-                                        //gen jog_commands
-                                        //reset lines board
+                                        cur_jog_line = 0;
+                                        jog_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer).ToList();
+
                                         prog_state = programm_state.JOG;
                                     }
                                 }
-
+                                else if (command.Contains("M612"))//set_zero
+                                {
+                                    offset_frame = cur_frame;
+                                }
                             }
                         }
                     }
@@ -389,7 +399,7 @@ namespace tcp_to_udp
                         // Console.WriteLine("len1: " + coms1.Count);
                         var vars_from_mes = mes.Split(' ');
                         var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
-                        //Console.WriteLine(vars_from_mes.Length);
+                       // Console.WriteLine(vars_from_mes.Length);
                         if (vars_from_mes.Length >= 7)
                         {
                             try
@@ -401,13 +411,14 @@ namespace tcp_to_udp
                                 var cur_printer_e = Convert.ToInt64(vars_from_mes[6]);
 
                                 cur_pos = new long[] { cur_printer_x, cur_printer_y, cur_printer_z, cur_printer_e };
-
+                                cur_frame = printer.solve_fk(cur_pos);
                                 var cur_prog_line_board = Convert.ToInt64(vars_from_mes[2]);
-
+                                //Console.WriteLine(cur_prog_line +" "+ cur_prog_line_board);
                                 //prog_work
                                 if(prog_state == programm_state.MOVE && cur_prog_line - cur_prog_line_board < 40)
                                 {
-                                    if(cur_prog_line < prog_commands.Count)
+                                    //Console.WriteLine(mes);
+                                    if (cur_prog_line < prog_commands.Count)
                                     {
                                         _TCPserver1.pushBuffer_in(prog_commands[cur_prog_line] + "\n");
                                         cur_prog_line++;
