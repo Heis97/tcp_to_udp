@@ -66,6 +66,8 @@ namespace tcp_to_udp
         volatile int[] ports_cam_orig = { 5000, 5001, 5002 };//bef, aft, pound
         volatile int[] ports_cam = { 5000, 5001, 5002 };
 
+        volatile int[] cameras_monit_inds = new int[] { 0, 1, 2 };
+
         volatile Mat[] last_frame = new Mat[3];
 
         //int[] ports_cam = { 5000, 5001, 5002 };
@@ -198,7 +200,9 @@ namespace tcp_to_udp
                                         //Console.WriteLine(ind_cam + " " + val);
                                         if (command.Contains("M590"))
                                         {
-                                            _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
+                                            //_cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
+
+                                            _cameras[cameras_monit_inds[ind_cam]].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
                                         }
                                         else if(command.Contains("M591"))
                                         {
@@ -578,6 +582,9 @@ namespace tcp_to_udp
 
             ports_cam[maxIndex_bef] = 5000;
             ports_cam[maxIndex_aft] = 5001;
+
+            cameras_monit_inds[0] = maxIndex_bef;
+            cameras_monit_inds[1] = maxIndex_aft;
             var vals_used = new bool[] { false, false, false };
             vals_used[maxIndex_bef] = true;
             vals_used[maxIndex_aft] = true;
@@ -586,6 +593,7 @@ namespace tcp_to_udp
                 if (!vals_used[i])
                 {
                     ports_cam[i] = 5002;
+                    cameras_monit_inds[2] = i;
                 }
             }
         }
