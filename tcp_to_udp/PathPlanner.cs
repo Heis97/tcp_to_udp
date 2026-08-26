@@ -1766,16 +1766,29 @@ namespace tcp_to_udp
         public double e_steps = 100;
         public double t_coef = 104616.18;
 
-        public double R = 100;
-        public double r = 30;
-        public double l = 200;
+        static public double R = 100;
+        static public double r = 30;
+        static public double l = 200;
+
+        Point3d_GL p_a_cent_off = new Point3d_GL(r * cos30, -r * sin30);
+        Point3d_GL p_b_cent_off = new Point3d_GL(-r * cos30, -r * sin30);
+        Point3d_GL p_c_cent_off = new Point3d_GL(0, r);
+
+        Point3d_GL p_a_tower = new Point3d_GL(R * cos30, -R * sin30);
+        Point3d_GL p_b_tower = new Point3d_GL(-R * cos30, -R * sin30);
+        Point3d_GL p_c_tower = new Point3d_GL(0, R);
+
 
         public long[] solve_ik(StepperFrame frame)
         {
             var p_xyz_ik = new Point3d_GL();
-            p_xyz_ik.x = frame.p_xyz.x * p_xyz_steps.x;
-            p_xyz_ik.y = frame.p_xyz.y * p_xyz_steps.y;
-            p_xyz_ik.z = frame.p_xyz.z * p_xyz_steps.z;
+
+
+            var p_z = delta_ik(frame.p_xyz);
+
+            p_xyz_ik.x = p_z.x * p_xyz_steps.x;
+            p_xyz_ik.y = p_z.y * p_xyz_steps.y;
+            p_xyz_ik.z = p_z.z * p_xyz_steps.z;
 
 
 
@@ -1793,22 +1806,19 @@ namespace tcp_to_udp
         }
         static public double cos(double x)
         {
-            return Math.Cos(x*180/Math.PI);
+            return Math.Cos(x * 180 / Math.PI);
         }
         static public double sin(double x)
         {
             return Math.Sin(x * 180 / Math.PI);
         }
+        static double cos30 = 0.866;
+        static double sin30 = 0.5;
+
+
         public Point3d_GL delta_ik(Point3d_GL p)
         {
-            var p_a_cent_off = new Point3d_GL( r * cos(30), - r * sin(30));
-            var p_b_cent_off = new Point3d_GL(-r * cos(30), - r * sin(30));
-            var p_c_cent_off = new Point3d_GL(0,  r);
-
-            var p_a_tower = new Point3d_GL(R * cos(30), -R * sin(30));
-            var p_b_tower = new Point3d_GL(-R * cos(30), -R * sin(30));
-            var p_c_tower = new Point3d_GL(0, R);
-
+            
             var p_a_cent = p + p_a_cent_off;
             var p_b_cent = p + p_b_cent_off;
             var p_c_cent = p + p_c_cent_off;
@@ -1816,8 +1826,6 @@ namespace tcp_to_udp
             var a_z = cross_tower(p_a_cent, p_a_tower,l);
             var b_z = cross_tower(p_b_cent, p_b_tower, l);
             var c_z = cross_tower(p_c_cent, p_c_tower, l);
-
-
 
             return new Point3d_GL(a_z,b_z,c_z);
         }
@@ -1832,14 +1840,69 @@ namespace tcp_to_udp
             return p_c.z+dz;
         }
 
+        
         public StepperFrame solve_fk(long[] pos)
         {
             var p_xyz_fk = new Point3d_GL(0,0,0);
+
+
+
+
+            var a_z = pos[0] / p_xyz_steps.x;
+            var b_z = pos[1] / p_xyz_steps.y;
+            var c_z = pos[2] / p_xyz_steps.z;
+
+
+            var a_z_sh = a_z - c_z;
+            var b_z_sh = b_z - c_z;
+
+
+
+
+            var e_fk = e_steps / e_steps;
+
+
             p_xyz_fk.x = pos[0] / p_xyz_steps.x;
             p_xyz_fk.y = pos[1] / p_xyz_steps.y;
             p_xyz_fk.z = pos[2] / p_xyz_steps.z;
-            var e_fk = e_steps / e_steps;
+
             return new StepperFrame(p_xyz_fk, e_fk, 0);
+        }
+        public double[,,] delta_fk_table = new double[1000, 1000, 5];
+        public void comp_delta_table(double printing_radius)
+        {
+            var dxy = 6d;
+            var dz = 6d;
+            var k_solve = 5;
+            for (double x = -printing_radius; x<printing_radius; x+=dxy)
+            {
+                for (double y = -printing_radius; y < printing_radius; y += dxy)
+                {
+                    for (double z = -printing_radius; z < printing_radius; z += dz)
+                    {
+                        if(Math.Sqrt(x*x+y*y)<printing_radius)
+                        {
+                            var p_z = delta_ik(new Point3d_GL(x,y,z));
+                            
+                            var a_z_sh = (int)(k_solve * (p_z.x - p_z.z)) + 500;
+                            var b_z_sh = (int)(k_solve * (p_z.y - p_z.z)) + 500;
+                            //Console.WriteLine(a_z_sh+ " "+ b_z_sh);
+                            if (a_z_sh>=0 && a_z_sh<1000 && b_z_sh >= 0 && b_z_sh < 1000)
+                            {
+                                delta_fk_table[a_z_sh, b_z_sh, 0] = x;
+                                delta_fk_table[a_z_sh, b_z_sh, 1] = y;
+                                delta_fk_table[a_z_sh, b_z_sh, 2] = z;
+
+                                delta_fk_table[a_z_sh, b_z_sh, 3] = p_z.x - p_z.z;
+                                delta_fk_table[a_z_sh, b_z_sh, 4] = p_z.y - p_z.z;
+                            }
+
+
+                        }
+                    }
+                }
+                Console.WriteLine(x);
+            }
         }
     }
     public class StepperFrame

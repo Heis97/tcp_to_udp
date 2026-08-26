@@ -109,10 +109,9 @@ namespace tcp_to_udp
             udp_addres_2 = new IPEndPoint(IPAddress.Parse(ip2), port_udp2);
             udp_client2.Connect(udp_addres_2);
 
-            
+           
 
 
-            
 
             //commands1.Add(new Command(coms_str.Length + 1, "M588 A1"));
 
@@ -160,7 +159,23 @@ namespace tcp_to_udp
             } 
         }
 
-       
+        public static void show_delta_table(double[,,] table)
+        {
+            var im = new Image<Gray,byte>(table.GetLength(0), table.GetLength(1));
+            for (int i = 0; i < im.Width; i++)
+            {
+                for (int j = 0; j < im.Height; j++)
+                {
+                    if(table[i, j, 0]!=0)
+                    {
+                        im.Data[i, j, 0] = 255;
+                    }
+                    
+                }
+            }
+            CvInvoke.Imshow("table", im);
+            CvInvoke.WaitKey();
+        }
         enum programm_state { MOVE, STOP, PAUSE, JOG }
         void recieve_udp_all()
         {
@@ -183,8 +198,11 @@ namespace tcp_to_udp
             StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             var printer = new StepperPrinter();
-
+            printer.comp_delta_table(100);
+            show_delta_table(printer.delta_fk_table);
             double jog_xyz_vel = 1;
+
+
 
             Console.WriteLine("2 "+commands1.Count);
             while (udp_client1 != null)
