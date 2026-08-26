@@ -183,12 +183,16 @@ namespace tcp_to_udp
             len = buffer_in.ToString().Length;
             
         }
+        public string last_send = "";
         public void send_mes(string send_prog)
         {
             try
             {
+
                 byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
+                
                 _stream.Write(send, 0, send.Length);
+                last_send = send_prog;
             }
             catch (System.IO.IOException e ) 
             {

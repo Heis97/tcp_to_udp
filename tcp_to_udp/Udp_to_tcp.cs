@@ -234,6 +234,11 @@ namespace tcp_to_udp
                                     pound_is_ending = val;
                                     tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
                                 }
+
+                                else if (command.Contains("M620"))
+                                {
+                                    //start heater tuning
+                                }
                             }
                         }
                     }
@@ -554,6 +559,32 @@ namespace tcp_to_udp
                     Thread.Sleep(15); // ~30 FPS
                 }
             }
+        }
+
+        public void auto_setup_heaters()
+        {
+            _TCPserver1.pushBuffer_in("M579 A1 T100 E1\n");
+            //wait when heat
+            bool heating_done = false;
+            double last_temp = 0;
+            while(!heating_done)
+            {
+                var cur_temp = get_temp_from_str(_TCPserver1.last_send);
+
+                    Thread.Sleep(3);
+            }
+
+
+        }
+        public static double get_temp_from_str(string str)
+        {
+            if (str == null) return -1;
+            if (str.Length == 0) return -1;
+            if (!str.Contains(" ")) return -1;
+            var vals = str.Split(' ');
+            if (vals.Length < 7) return -1;
+            if (Convert.ToInt32(vals[2]) == 5) return Convert.ToDouble(vals[3]);
+            return -1;
         }
         public void auto_setup_cams()
         {
