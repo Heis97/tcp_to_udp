@@ -1766,9 +1766,9 @@ namespace tcp_to_udp
         public double e_steps = 100;
         public double t_coef = 104616.18;
 
-        static public double R = 100;
-        static public double r = 30;
-        static public double l = 200;
+        static public double R = 150;
+        static public double r = 40;
+        static public double l = 215;
 
         Point3d_GL p_a_cent_off = new Point3d_GL(r * cos30, -r * sin30);
         Point3d_GL p_b_cent_off = new Point3d_GL(-r * cos30, -r * sin30);
@@ -1868,42 +1868,70 @@ namespace tcp_to_udp
 
             return new StepperFrame(p_xyz_fk, e_fk, 0);
         }
+       
+
+        public double max_printing_radius(double offs = 1)
+        {
+
+
+            return r+l-R-offs;
+        }
+
         public double[,,] delta_fk_table = new double[1000, 1000, 5];
+        static int fk_table_dim_1 = 15;
+        public double[,,] delta_fk_table_ps = new double[fk_table_dim_1, fk_table_dim_1, 5];
+        public double delta_fk_table_k = 1;
         public void comp_delta_table(double printing_radius)
         {
-            var dxy = 6d;
-            var dz = 6d;
-            var k_solve = 5;
+            var dxy = printing_radius / 10;
+            delta_fk_table = new double[2*(int)l, 2 * (int)l, 5];
+            delta_fk_table_k = (int)(15/2 * l);
             for (double x = -printing_radius; x<printing_radius; x+=dxy)
             {
                 for (double y = -printing_radius; y < printing_radius; y += dxy)
                 {
-                    for (double z = -printing_radius; z < printing_radius; z += dz)
+                    double z = 0;
+                    //for (double z = -printing_radius; z < printing_radius; z += dz)
                     {
                         if(Math.Sqrt(x*x+y*y)<printing_radius)
                         {
                             var p_z = delta_ik(new Point3d_GL(x,y,z));
-                            
-                            var a_z_sh = (int)(k_solve * (p_z.x - p_z.z)) + 500;
-                            var b_z_sh = (int)(k_solve * (p_z.y - p_z.z)) + 500;
+
+                            var a_z = p_z.x;
+                            var b_z = p_z.y;
+                            var c_z = p_z.z;
+                            var a_z_sh = (int)(delta_fk_table_k * (a_z - c_z) + l);
+                            var b_z_sh = (int)(delta_fk_table_k * (b_z - c_z) + l);
                             //Console.WriteLine(a_z_sh+ " "+ b_z_sh);
-                            if (a_z_sh>=0 && a_z_sh<1000 && b_z_sh >= 0 && b_z_sh < 1000)
+
+
+                            if (a_z_sh >= 0 && a_z_sh < delta_fk_table_ps.GetLength(0) && b_z_sh >= 0 && b_z_sh < delta_fk_table_ps.GetLength(1))
                             {
-                                delta_fk_table[a_z_sh, b_z_sh, 0] = x;
-                                delta_fk_table[a_z_sh, b_z_sh, 1] = y;
-                                delta_fk_table[a_z_sh, b_z_sh, 2] = z;
+                                delta_fk_table_ps[a_z_sh, b_z_sh, 0] = x;
+                                delta_fk_table_ps[a_z_sh, b_z_sh, 1] = y;
+                                delta_fk_table_ps[a_z_sh, b_z_sh, 2] = z - p_z.z;
 
-                                delta_fk_table[a_z_sh, b_z_sh, 3] = p_z.x - p_z.z;
-                                delta_fk_table[a_z_sh, b_z_sh, 4] = p_z.y - p_z.z;
+                                delta_fk_table_ps[a_z_sh, b_z_sh, 3] = p_z.x - p_z.z;
+                                delta_fk_table_ps[a_z_sh, b_z_sh, 4] = p_z.y - p_z.z;
+
                             }
-
-
                         }
                     }
                 }
                 Console.WriteLine(x);
             }
         }
+
+        public Point3d_GL comp_delta_fitting(Point3d_GL p_cur_xyz, Point3d_GL p_dest_abc, double dr = 0.1)
+        {
+            var p_0 = delta_ik(p_cur_xyz);
+            var dx = new Point3d_GL(dr, 0, 0); var dy = new Point3d_GL(0,dr,  0); var dz = new Point3d_GL( 0, 0,dr);
+            var p_dx = delta_ik(p_cur_xyz+dx); var p_dy = delta_ik(p_cur_xyz + dy); var p_dz = delta_ik(p_cur_xyz + dz);
+
+
+            return p_0;
+        }
+
     }
     public class StepperFrame
     {

@@ -198,7 +198,10 @@ namespace tcp_to_udp
             StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             var printer = new StepperPrinter();
-            printer.comp_delta_table(100);
+
+            var max_print_r = printer.max_printing_radius();
+            Console.WriteLine(max_print_r);
+            printer.comp_delta_table(max_print_r);
             show_delta_table(printer.delta_fk_table);
             double jog_xyz_vel = 1;
 
