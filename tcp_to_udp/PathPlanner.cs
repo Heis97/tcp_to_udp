@@ -1762,7 +1762,8 @@ namespace tcp_to_udp
     }
     public class StepperPrinter
     {
-        public Point3d_GL p_xyz_steps = new Point3d_GL(100,100,100);
+        static double steps_xyz = 80;
+        public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
 
@@ -1812,7 +1813,7 @@ namespace tcp_to_udp
         {
             return Math.Sin(x * 180 / Math.PI);
         }
-        static double cos30 = 0.866;
+        static double cos30 = 0.86602540378;
         static double sin30 = 0.5;
 
 
@@ -1851,22 +1852,14 @@ namespace tcp_to_udp
             var a_z = pos[0] / p_xyz_steps.x;
             var b_z = pos[1] / p_xyz_steps.y;
             var c_z = pos[2] / p_xyz_steps.z;
-
-
-            var a_z_sh = a_z - c_z;
-            var b_z_sh = b_z - c_z;
-
-
-
+            var dest_abc = new Point3d_GL(a_z, b_z, c_z);
+            var p_start = comp_delta_fk_table(dest_abc);
+            var p_fit = comp_delta_fitting(p_start, dest_abc);
+            var p_fit2 = comp_delta_fitting(p_fit[1], dest_abc);
 
             var e_fk = e_steps / e_steps;
 
-
-            p_xyz_fk.x = pos[0] / p_xyz_steps.x;
-            p_xyz_fk.y = pos[1] / p_xyz_steps.y;
-            p_xyz_fk.z = pos[2] / p_xyz_steps.z;
-
-            return new StepperFrame(p_xyz_fk, e_fk, 0);
+            return new StepperFrame(p_fit2[1], e_fk, 0);
         }
        
 
@@ -1885,7 +1878,7 @@ namespace tcp_to_udp
         {
             var dxy = printing_radius / 10;
             delta_fk_table = new double[2*(int)l, 2 * (int)l, 5];
-            delta_fk_table_k = (int)(15/2 * l);
+            delta_fk_table_k = (15/(2 * l));
             for (double x = -printing_radius; x<printing_radius; x+=dxy)
             {
                 for (double y = -printing_radius; y < printing_radius; y += dxy)
@@ -1900,8 +1893,8 @@ namespace tcp_to_udp
                             var a_z = p_z.x;
                             var b_z = p_z.y;
                             var c_z = p_z.z;
-                            var a_z_sh = (int)(delta_fk_table_k * (a_z - c_z) + l);
-                            var b_z_sh = (int)(delta_fk_table_k * (b_z - c_z) + l);
+                            var a_z_sh = (int)(delta_fk_table_k * ((a_z - c_z) + l));
+                            var b_z_sh = (int)(delta_fk_table_k * ((b_z - c_z) + l));
                             //Console.WriteLine(a_z_sh+ " "+ b_z_sh);
 
 
@@ -1918,18 +1911,68 @@ namespace tcp_to_udp
                         }
                     }
                 }
-                Console.WriteLine(x);
+                
             }
+            //Console.WriteLine("");
         }
 
-        public Point3d_GL comp_delta_fitting(Point3d_GL p_cur_xyz, Point3d_GL p_dest_abc, double dr = 0.1)
+        public Point3d_GL comp_delta_fk_table(Point3d_GL p_z)
         {
+            var a_z = p_z.x;
+            var b_z = p_z.y;
+            var c_z = p_z.z;
+            var a_z_sh = (int)(delta_fk_table_k * ((a_z - c_z) + l));
+            var b_z_sh = (int)(delta_fk_table_k * ((b_z - c_z) + l));
+
+            var x_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 0];
+            var y_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 1];
+            var z_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 2];
+
+            z_0 += c_z;
+            
+
+            return new Point3d_GL(x_0,y_0,z_0);
+
+
+        }
+
+        public Point3d_GL[] comp_delta_fitting(Point3d_GL p_cur_xyz, Point3d_GL p_dest_abc, double dr = 0.001)
+        {
+            //Console.WriteLine("p_st: " + p_cur_xyz);
             var p_0 = delta_ik(p_cur_xyz);
             var dx = new Point3d_GL(dr, 0, 0); var dy = new Point3d_GL(0,dr,  0); var dz = new Point3d_GL( 0, 0,dr);
             var p_dx = delta_ik(p_cur_xyz+dx); var p_dy = delta_ik(p_cur_xyz + dy); var p_dz = delta_ik(p_cur_xyz + dz);
 
 
-            return p_0;
+            var pds = new Point3d_GL[] { p_dx, p_dy, p_dz };
+            var arr_base = new double[3, 3];
+            var arr_err = new double[3, 1];
+            arr_err[0, 0] = p_dest_abc.x - p_0.x ;
+            arr_err[1, 0] = p_dest_abc.y - p_0.y;
+            arr_err[2, 0] = p_dest_abc.z - p_0.z;
+
+            for (int i = 0; i < 3; i++)
+            {
+                arr_base[0, i] = p_0.x - pds[i].x;
+                arr_base[1, i] = p_0.y - pds[i].y;
+                arr_base[2, i] = p_0.z - pds[i].z;
+            }
+
+            var m_base = new Matrix<double>(arr_base);
+            var m_err = new Matrix<double>(arr_err);
+            var X = new Matrix<double>(3, 1);
+            bool isSuccess = CvInvoke.Solve(m_base, m_err, X, DecompMethod.LU);
+
+
+            p_cur_xyz.x -= dr * X[0, 0];
+            p_cur_xyz.y -= dr * X[1, 0];
+            p_cur_xyz.z -= dr * X[2, 0];
+            //Console.WriteLine("p_fit: " + p_cur_xyz);
+            var abc_fitting = delta_ik(p_cur_xyz);
+
+            //Console.WriteLine(abc_fitting - p_dest_abc);
+
+            return new Point3d_GL[] { abc_fitting, p_cur_xyz };
         }
 
     }
@@ -2138,7 +2181,7 @@ namespace tcp_to_udp
             return coms.ToArray();
         }
 
-        public static string[] convert_g_code(StepperFrame[] orig_g_code, StepperPrinter printer)
+        public static string[] convert_g_code(StepperFrame[] orig_g_code, StepperPrinter printer, StepperFrame offset)
         {
             var stepper_frames = convert_frames_v2(
                 orig_g_code,
@@ -2149,7 +2192,8 @@ namespace tcp_to_udp
             coms.Add("M588 F0");
             for (int i = 0; i < stepper_frames.Length; i++)
             {
-                Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
+                stepper_frames[i].p_xyz += offset.p_xyz;
+               // Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
                 var com = "M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
                 if (i == 5) coms.Add("M588 A1 D0 C"+ stepper_frames.Length);
