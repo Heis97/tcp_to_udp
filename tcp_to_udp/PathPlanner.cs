@@ -1762,24 +1762,48 @@ namespace tcp_to_udp
     }
     public class StepperPrinter
     {
+
+        static double cos30 = 0.86602540378;
+        static double sin30 = 0.5;
+
+
         static double steps_xyz = 80;
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
 
-        static public double R = 150;
-        static public double r = 40;
-        static public double l = 215;
+        public double R = 150;
+        public double r = 40;
+        public double l = 215;
+        public double printing_r = 100;
 
-        Point3d_GL p_a_cent_off = new Point3d_GL(r * cos30, -r * sin30);
-        Point3d_GL p_b_cent_off = new Point3d_GL(-r * cos30, -r * sin30);
-        Point3d_GL p_c_cent_off = new Point3d_GL(0, r);
+        Point3d_GL p_a_cent_off = new Point3d_GL();
+        Point3d_GL p_b_cent_off = new Point3d_GL();
+        Point3d_GL p_c_cent_off = new Point3d_GL();
 
-        Point3d_GL p_a_tower = new Point3d_GL(R * cos30, -R * sin30);
-        Point3d_GL p_b_tower = new Point3d_GL(-R * cos30, -R * sin30);
-        Point3d_GL p_c_tower = new Point3d_GL(0, R);
+        Point3d_GL p_a_tower = new Point3d_GL();
+        Point3d_GL p_b_tower = new Point3d_GL();
+        Point3d_GL p_c_tower = new Point3d_GL();
 
+        public long[][] points_res_calibrate_abc = new long[20][];
+        public Point3d_GL[] points_for_calibrate_xy = new Point3d_GL[20];
+        public int  delta_calibr_counter = 0;
+        public int delta_calibr_counter_max = 0;
 
+        public bool delta_calibr_en = false;
+
+        public enum delta_calibr_ps_count { ps4,  ps17 };
+
+        public StepperPrinter()
+        {
+            p_a_cent_off = new Point3d_GL(r * cos30, -r * sin30);
+            p_b_cent_off = new Point3d_GL(-r * cos30, -r * sin30);
+            p_c_cent_off = new Point3d_GL(0, r);
+
+            p_a_tower = new Point3d_GL(R * cos30, -R * sin30);
+            p_b_tower = new Point3d_GL(-R * cos30, -R * sin30);
+            p_c_tower = new Point3d_GL(0, R);
+        }
         public long[] solve_ik(StepperFrame frame)
         {
             var p_xyz_ik = new Point3d_GL();
@@ -1807,15 +1831,70 @@ namespace tcp_to_udp
         }
         static public double cos(double x)
         {
-            return Math.Cos(x * 180 / Math.PI);
+            return Math.Cos(x * Math.PI/ 180);
         }
         static public double sin(double x)
         {
-            return Math.Sin(x * 180 / Math.PI);
+            return Math.Sin(x * Math.PI/ 180);
         }
-        static double cos30 = 0.86602540378;
-        static double sin30 = 0.5;
 
+        public string calib_17_ps = "14918 14918 14918\r\n11353 11353 17229\r\n14574 8679 16255\r\n16794 9302 13634\r\n17163 12465 10300\r\n15550 15500 8461\r\n12498 17114 10199\r\n9337 16805 13553\r\n8674 14655 16239\r\n13698 13757 16550\r\n15181 12773 16062\r\n16298 12959 14796\r\n16505 14211 13374\r\n15711 15635 12701\r\n14289 16469 13287\r\n13002 16332 14694\r\n12761 15269 16005";
+
+        public void delta_init_calibr(delta_calibr_ps_count  type)
+        {
+            if(type == delta_calibr_ps_count.ps4)
+            {
+                var ps_len = 4;
+                points_res_calibrate_abc = new long[ps_len][];
+                points_for_calibrate_xy = new Point3d_GL[ps_len];
+                var z_safe = 6;
+                var rad1 = printing_r - 25;
+                points_for_calibrate_xy[0] = new Point3d_GL(0, 0, z_safe);
+                points_for_calibrate_xy[1] = new Point3d_GL(rad1 * cos30, -rad1 * sin30, z_safe);
+                points_for_calibrate_xy[2] = new Point3d_GL(-rad1 * cos30, -rad1 * sin30, z_safe);
+                points_for_calibrate_xy[3] = new Point3d_GL(0, rad1, z_safe);
+                delta_calibr_counter_max = 4;
+            }
+
+            if (type == delta_calibr_ps_count.ps17)
+            {
+                var ps_len = 17;
+                points_res_calibrate_abc = new long[ps_len][];
+                points_for_calibrate_xy = new Point3d_GL[ps_len];
+                var z_safe = 6;
+                var rad1 = printing_r - 25;
+                var rad2 = (printing_r - 25)/2;
+                points_for_calibrate_xy[0] = new Point3d_GL(0, 0, z_safe);
+                int j = 1;
+                for (var i = 0; i < 8; i++)
+                {
+                    points_for_calibrate_xy[j] = new Point3d_GL(rad1 * sin(i*45), rad1 * cos(i * 45), z_safe); j++;
+                    //Console.WriteLine(points_for_calibrate_xy[j - 1]);
+                }
+
+                for (var i = 0; i < 8; i++)
+                {
+                    points_for_calibrate_xy[j] = new Point3d_GL(rad2 * sin(i * 45), rad2 * cos(i * 45), z_safe); j++;
+                    //Console.WriteLine(points_for_calibrate_xy[j - 1]);
+                }
+
+                delta_calibr_counter_max = ps_len;
+            }
+        }
+        public void delta_comp_prop_calibr()
+        {
+            Console.WriteLine("points_res_calibrate_abc-----------------------------------");
+            for (int i = 0; i<points_res_calibrate_abc.Length; i++)
+            {
+                Console.WriteLine(points_res_calibrate_abc[i][0] + " " + points_res_calibrate_abc[i][1] + " " + points_res_calibrate_abc[i][2] + " ");
+            }
+            Console.WriteLine("-----------------------------------------------------------");
+
+
+            var vals = calib_17_ps.Split("\r\n");
+
+
+        }
 
         public Point3d_GL delta_ik(Point3d_GL p)
         {
@@ -1844,6 +1923,7 @@ namespace tcp_to_udp
         
         public StepperFrame solve_fk(long[] pos)
         {
+            var pos_comp = (long[])pos.Clone();
             var p_xyz_fk = new Point3d_GL(0,0,0);
 
 
@@ -1856,18 +1936,19 @@ namespace tcp_to_udp
             var p_start = comp_delta_fk_table(dest_abc);
             var p_fit = comp_delta_fitting(p_start, dest_abc);
             var p_fit2 = comp_delta_fitting(p_fit[1], dest_abc);
+            var p_fit3 = comp_delta_fitting(p_fit2[1], dest_abc);
 
             var e_fk = e_steps / e_steps;
 
-            return new StepperFrame(p_fit2[1], e_fk, 0);
+            return new StepperFrame(p_fit3[1], e_fk, 0);
         }
        
 
         public double max_printing_radius(double offs = 1)
         {
 
-
-            return r+l-R-offs;
+            printing_r = r + l - R - offs;
+            return printing_r;
         }
 
         public double[,,] delta_fk_table = new double[1000, 1000, 5];
@@ -2185,7 +2266,7 @@ namespace tcp_to_udp
         {
             var stepper_frames = convert_frames_v2(
                 orig_g_code,
-                3,        //wind
+                5,        //wind
                 0.2);      //min_dist
 
             var coms = new List<string>();
@@ -2193,12 +2274,13 @@ namespace tcp_to_udp
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 stepper_frames[i].p_xyz += offset.p_xyz;
-               // Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
+                //Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
                 var com = "M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
-                if (i == 5) coms.Add("M588 A1 D0 C"+ stepper_frames.Length);
+                if (i == 40) coms.Add("M588 A1 D0 C"+ stepper_frames.Length);
                 coms.Add(com);
             }
+            //coms.Add("M588 A0 D0 C" + stepper_frames.Length);
 
             return coms.ToArray();
         }

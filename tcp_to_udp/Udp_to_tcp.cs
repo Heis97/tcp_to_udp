@@ -195,6 +195,7 @@ namespace tcp_to_udp
             int pause_prog_line = 0;
 
             long[] cur_pos = new long[]{0, 0, 0, 0};
+            long[] prev_pos = new long[] { 0, 0, 0, 0 };
             StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
             var printer = new StepperPrinter();
@@ -208,9 +209,14 @@ namespace tcp_to_udp
            // printer.solve_fk(new long[] { 1000, 1000, 1000 });
             double jog_xyz_vel = 30;
 
+            int prev_delta_calib = 0;
+            int prev_homing = 0;
+            bool delta_calib_go_next_p = false;
+            bool delta_calib_nozzle_up = false;
 
 
             Console.WriteLine("2 "+commands1.Count);
+            int max_count_cur_prog = 0;
             while (udp_client1 != null)
             {
                 // Console.WriteLine("recive udp");
@@ -363,6 +369,20 @@ namespace tcp_to_udp
                                 {
                                     offset_frame = cur_frame;
                                 }
+                                else if (command.Contains("M613"))//set_zero
+                                {
+                                    
+                                    var val = val_from_command(command);
+                                    //
+                                    if (val <= 4) { val = 4; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps4); }
+                                    else { val = 17; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps17); }
+
+                                    _TCPserver1.pushBuffer_in("M589 X80" + "\n");
+
+                                    printer.delta_calibr_en = true;
+
+                                   // Console.WriteLine("printer.delta_calibr_en = true;");
+                                }
                             }
                         }
                     }
@@ -412,36 +432,43 @@ namespace tcp_to_udp
 
 
                     //Console.WriteLine(DateTime.Now.Ticks);
-                    var mes = Encoding.ASCII.GetString(res) + "\n";
+                    var mes = Encoding.ASCII.GetString(res);
                     if (res != null)
                     {
                         if (_TCPserver1.connected)
                         {
                             //_TCPserver1.send_mes(mes);
-                            _TCPserver1.pushBuffer(mes);
+                            _TCPserver1.pushBuffer(mes + " " + cur_frame.p_xyz.ToString() + "\n");
                         }
                         //Console.WriteLine(mes);
                         // Console.WriteLine("len1: " + coms1.Count);
                         var vars_from_mes = mes.Split(' ');
                         var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
                        // Console.WriteLine(vars_from_mes.Length);
-                        if (vars_from_mes.Length >= 7)
+                        if (vars_from_mes.Length >= 9)
                         {
                             try
                             {
                                
+                                //cur position-----------------------------------------------------------------
                                 var cur_printer_x = Convert.ToInt64(vars_from_mes[3]);
                                 var cur_printer_y = Convert.ToInt64(vars_from_mes[4]);
                                 var cur_printer_z = Convert.ToInt64(vars_from_mes[5]);
                                 var cur_printer_e = Convert.ToInt64(vars_from_mes[6]);
 
                                 cur_pos = new long[] { cur_printer_x, cur_printer_y, cur_printer_z, cur_printer_e };
+                                
+                                //Console.WriteLine(cur_frame.p_xyz);
+
+                                var del_pos = new long[] { cur_pos[0] - prev_pos[0], cur_pos[1] - prev_pos[1], cur_pos[2] - prev_pos[2] };
+                                
+                                var xyz_delt = Math.Abs(del_pos[0]) + Math.Abs(del_pos[1]) + Math.Abs(del_pos[2]);
+                                //if(xyz_delt>0) Console.WriteLine(del_pos[0] + " " + del_pos[1] + " " + del_pos[2]);
                                 cur_frame = printer.solve_fk(cur_pos);
-                                Console.WriteLine(cur_frame.p_xyz);
                                 var cur_prog_line_board = Convert.ToInt64(vars_from_mes[2]);
                                 //Console.WriteLine(cur_prog_line +" "+ cur_prog_line_board);
-                                //prog_work
-                                if(prog_state == programm_state.MOVE && cur_prog_line - cur_prog_line_board < 40)
+                                //prog_work-----------------------------------------------------------------
+                                if (prog_state == programm_state.MOVE && cur_prog_line - cur_prog_line_board < 150)
                                 {
                                     //Console.WriteLine(mes);
                                     if (cur_prog_line < prog_commands.Count)
@@ -451,8 +478,8 @@ namespace tcp_to_udp
                                     }                                    
                                 }
 
-                                //jog work
-                                if(prog_state == programm_state.JOG && cur_jog_line - cur_prog_line_board < 40)
+                                //jog work-----------------------------------------------------------------
+                                if (prog_state == programm_state.JOG && cur_jog_line - cur_prog_line_board < 150)
                                 {
                                     if (cur_jog_line < jog_commands.Count)
                                     {
@@ -460,10 +487,90 @@ namespace tcp_to_udp
                                         cur_jog_line++;
                                     }
                                 }
-                                
-                               // Console.WriteLine(mes);
+                                //delta calib_handler-----------------------------------------------------------------
+                                var cur_delta_calib = Convert.ToInt32(vars_from_mes[8]);
+                                var cur_ring_buf_en = Convert.ToInt32(vars_from_mes[9]);
+                                var cur_homing = Convert.ToInt32(vars_from_mes[10]);
+                                if (printer.delta_calibr_en)
+                                {
+                                    
+                                    
 
-                                
+                                    if (prev_homing - cur_homing == 1)
+                                    {
+                                        _TCPserver1.pushBuffer_in("M589 Y80" + "\n");
+                                        printer.delta_calibr_counter = 0;
+
+                                        Console.WriteLine("prev_homing - cur_homing == 1");
+                                    }
+
+                                    if (prev_delta_calib - cur_delta_calib  == 1 && !delta_calib_go_next_p)
+                                    {
+                                        Console.WriteLine("cur_delta_calib - prev_delta_calib == 1");
+                                        if (printer.delta_calibr_counter==0)
+                                        {
+                                            offset_frame = cur_frame;
+                                        }
+
+
+                                        printer.points_res_calibrate_abc[printer.delta_calibr_counter] =(long[]) cur_pos.Clone();
+                                        printer.delta_calibr_counter++;
+                                        Console.WriteLine("calibr_counter: "+printer.delta_calibr_counter + "/ " + printer.delta_calibr_counter_max);
+                                        if(printer.delta_calibr_counter>= printer.delta_calibr_counter_max)
+                                        {
+                                            printer.delta_calibr_en = false;
+                                            printer.delta_comp_prop_calibr();
+                                            _TCPserver1.pushBuffer_in("M589 X80" + "\n");
+                                        }
+                                        var delta_orig_commands = new List<string>();
+                                        delta_orig_commands.Add("G1 X"+cur_frame.p_xyz.x+" Y"+cur_frame.p_xyz.y+" Z" + cur_frame.p_xyz.z + " F1200");
+                                        delta_orig_commands.Add("G1 Z"+printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
+                                        delta_orig_commands.Add("G1 X" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].x + " Y" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].y);
+                                        //prog_orig_commands g code to next point
+                                        var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
+                                        
+                                        prog_commands = StepperFrame.convert_g_code(frames_xyz, printer, offset_frame).ToList();
+                                        max_count_cur_prog = prog_commands.Count;
+                                        cur_prog_line = 0;
+                                        prog_state = programm_state.MOVE;
+
+                                        delta_calib_go_next_p = true;
+                                        Console.WriteLine(delta_calib_go_next_p + " " + cur_ring_buf_en + " " + cur_prog_line + " ");
+                                    }
+
+                                    /*if (prev_delta_calib - cur_delta_calib == 1 && !delta_calib_go_next_p)
+                                    {
+                                        var delta_orig_commands = new List<string>();
+                                        delta_orig_commands.Add("G1 Z" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].z + " F600");
+                                        //prog_orig_commands g code to next point
+                                        var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
+                                        max_count_cur_prog = frames_xyz.Length;
+                                        prog_commands = StepperFrame.convert_g_code(frames_xyz, printer, offset_frame).ToList();
+                                        cur_prog_line = 0;
+                                        prog_state = programm_state.MOVE;
+                                        delta_calib_nozzle_up = false;
+
+                                    }
+                                    */
+                                    if (delta_calib_go_next_p && cur_ring_buf_en == 0) Console.WriteLine(cur_prog_line + "/" + max_count_cur_prog);
+
+
+                                    if (delta_calib_go_next_p && cur_ring_buf_en == 0 && cur_prog_line > max_count_cur_prog-5)
+                                    {
+                                        Console.WriteLine(delta_calib_go_next_p + " " + cur_ring_buf_en + " " + cur_prog_line + " " + max_count_cur_prog / 2);
+                                        Console.WriteLine("delta_calib_go_next_p && cur_ring_buf_en == 0");
+                                        _TCPserver1.pushBuffer_in("M589 Y80" + "\n");
+                                        delta_calib_go_next_p = false;
+                                    }
+                                    
+                                }
+
+                                prev_delta_calib = cur_delta_calib;
+                                prev_homing = cur_homing;
+                                // Console.WriteLine(mes);
+                                prev_pos = (long[]) cur_pos.Clone();
+
+
                             }
                             catch
                             {
@@ -474,9 +581,10 @@ namespace tcp_to_udp
                         if (commands1.Count > 0)
                         {
 
-                           // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
-                            //Console.WriteLine("send1 com pre: " + cur_num_board + "/" + count_send1 + " " + commands1[0].com);
+                            // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
                             var cur_num_ins = commands1[0].num - count_send1;
+                            Console.WriteLine("send1 com pre: " + cur_num_board + "/" + cur_num_ins+" "+ count_send1 + " " + commands1[0].com);
+                           
                             if (!initing1)
                             {
                                 initing1 = true;
@@ -492,7 +600,7 @@ namespace tcp_to_udp
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur); 
                                 udp_client1.Send(mes_out, mes_out.Length);
                                 
-                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
