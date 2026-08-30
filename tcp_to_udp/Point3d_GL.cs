@@ -1,4 +1,6 @@
 ﻿using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -415,6 +417,86 @@ namespace tcp_to_udp
             return Math.Sqrt(x * x + y * y);
         }
 
+        public static double errPlane(Point3d_GL[] points_in, Flat3d_GL flat)
+        {
+            var err = 0d;
+
+
+            
+
+            var errs = new double[points_in.Length];
+            for ( var i = 0; i < points_in.Length; i++)
+            {
+                var cur_err = flat.dist_to_flat(points_in[i]);
+                errs[i]  = cur_err;
+                err += Math.Pow(cur_err, 2);
+            }
+
+            var p_max = Point3d_GL.Max(points_in);
+            var p_min = Point3d_GL.Min(points_in);
+            var p_dim = p_max - p_min;
+            var im = new Image<Bgr, byte>((int)p_dim.x, (int)p_dim.y);
+            for (int i = 0; i < points_in.Length; i++)
+            {
+                var z = errs[i];
+                var p_cur = points_in[i] - p_min;
+                var color = new MCvScalar(0, 0, 0);
+               // Console.WriteLine("z: " + z);
+                if (z < 0) color.V0 = -z * 200;
+                else color.V1 = z * 200;
+                CvInvoke.DrawMarker(im, new Point((int)p_cur.x, (int)p_cur.y), color, MarkerTypes.Cross, 10, 2);
+            }
+            //CvInvoke.Imshow("im", im);
+           // CvInvoke.WaitKey();
+
+            return err/ points_in.Length;
+        }
+        public static Flat3d_GL FitPlane(Point3d_GL[] points_in)
+        {
+            var planeEquation = new float[4]; // ax + by + cz + d = 0
+            MCvPoint3D32f[] points = new MCvPoint3D32f[points_in.Length];
+            for (int i = 0; i < points.Length; i++)
+            {
+                points[i].X = (float)points_in[i].x;
+                points[i].Y = (float)points_in[i].y;
+                points[i].Z = (float)points_in[i].z;
+            }
+            if (points.Length < 3)
+                throw new ArgumentException("Need at least 3 points");
+
+            // Создаем матрицу A и вектор b для решения методом наименьших квадратов
+            Matrix<float> A = new Matrix<float>(points.Length, 3);
+            Matrix<float> b = new Matrix<float>(points.Length, 1);
+
+            for (int i = 0; i < points.Length; i++)
+            {
+                A[i, 0] = points[i].X;
+                A[i, 1] = points[i].Y;
+                A[i, 2] = 1;
+                b[i, 0] = -points[i].Z;
+            }
+
+            // Решаем систему методом SVD
+            Matrix<float> solution = new Matrix<float>(3, 1);
+            CvInvoke.Solve(A, b, solution, DecompMethod.Svd);
+
+            planeEquation[0] = solution[0, 0]; // a
+            planeEquation[1] = solution[1, 0]; // b
+            planeEquation[2] = 1;               // c
+            planeEquation[3] = solution[2, 0]; // d
+
+            // Нормализуем
+            float norm = (float)Math.Sqrt(
+                planeEquation[0] * planeEquation[0] +
+                planeEquation[1] * planeEquation[1] +
+                planeEquation[2] * planeEquation[2]
+            );
+
+            for (int i = 0; i < 4; i++)
+                planeEquation[i] /= norm;
+
+            return new Flat3d_GL(planeEquation[0], planeEquation[1], planeEquation[2], planeEquation[3]);
+        }
         public double magnitude_ax(Ax ax)
         {
             if (ax == Ax.X) return Math.Abs(x);

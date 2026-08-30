@@ -90,7 +90,7 @@ namespace tcp_to_udp
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
             //save_obj("settings_string.json", set_test);
-            device_numb = settins_string.device_num;
+            device_numb = 0;
             tcp_client_main = null;
 
             udp_client1 = null;
@@ -176,6 +176,8 @@ namespace tcp_to_udp
             CvInvoke.Imshow("table", im);
             CvInvoke.WaitKey();
         }
+
+
         enum programm_state { MOVE, STOP, PAUSE, JOG }
         void recieve_udp_all()
         {
@@ -203,7 +205,10 @@ namespace tcp_to_udp
             var max_print_r = printer.max_printing_radius();
             Console.WriteLine(max_print_r);
             printer.comp_delta_table(max_print_r);
-            // show_delta_table(printer.delta_fk_table_ps);
+
+            printer.delta_comp_test();
+            
+             //show_delta_table(printer.delta_fk_table_ps);
             //var p_abc_ik = printer.delta_ik(new Point3d_GL(0, 0, -174.72));
             //Console.WriteLine("ik: "+p_abc_ik);
            // printer.solve_fk(new long[] { 1000, 1000, 1000 });

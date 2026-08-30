@@ -13,6 +13,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.UI;
 using Emgu.CV.Util;
+using System.Reflection;
 
 namespace tcp_to_udp
 {
@@ -1776,6 +1777,8 @@ namespace tcp_to_udp
         public double r = 40;
         public double l = 215;
         public double printing_r = 100;
+        public double a_off = 0;
+        public double b_off = 0;
 
         Point3d_GL p_a_cent_off = new Point3d_GL();
         Point3d_GL p_b_cent_off = new Point3d_GL();
@@ -1795,6 +1798,11 @@ namespace tcp_to_udp
         public enum delta_calibr_ps_count { ps4,  ps17 };
 
         public StepperPrinter()
+        {
+            init_delta_comp();
+        }
+
+        void init_delta_comp()
         {
             p_a_cent_off = new Point3d_GL(r * cos30, -r * sin30);
             p_b_cent_off = new Point3d_GL(-r * cos30, -r * sin30);
@@ -1891,11 +1899,152 @@ namespace tcp_to_udp
             Console.WriteLine("-----------------------------------------------------------");
 
 
-            var vals = calib_17_ps.Split("\r\n");
-
+           
 
         }
 
+        public void delta_comp_test(double kd = 1,int iter = 3)
+        {
+            var iter_cur = iter;
+            iter_cur--;
+            if (iter_cur == 0) return;
+
+
+            var vals = calib_17_ps.Split("\r\n");
+            
+            var abc_ps = new long[vals.Length][];
+            for (int i = 0; i < vals.Length; i++)
+            {
+                var cur_abc = vals[i].Split(" ");
+                abc_ps[i] = new long[3];
+                abc_ps[i][0] = Convert.ToInt64(cur_abc[0]);
+                abc_ps[i][1] = Convert.ToInt64(cur_abc[1]);
+                abc_ps[i][2] = Convert.ToInt64(cur_abc[2]);
+            }
+            //r -= 5;
+            //R -= 5;
+           
+            //r = 40;
+            
+    
+            var j_max = 120;
+            var k_max = 120;
+            var da = kd * 0.1;
+            var db = kd * 0.1;
+            Console.WriteLine("ab_st: " + a_off + " " + b_off);
+            a_off -= da* j_max/2;
+            b_off -= db * k_max / 2;
+            var a_off_start = a_off;
+            var b_off_start = b_off;
+            var im = new Image<Gray, double>(j_max, k_max);           
+            var err_min = 1111110d;
+
+            var a_off_solv = 0d;
+            var b_off_solv = 0d;
+            for (int j = 0; j < j_max; j++)
+            {
+                a_off = a_off_start;
+                for (int k = 0;k < k_max; k++)
+                {
+                    a_off += da;
+
+                    var max_print_r = max_printing_radius();
+                    comp_delta_table(max_print_r);
+                    var err = estimate_flat_err(abc_ps);
+                    //Console.WriteLine(a_off+" "+b_off+" "+r+" "+  err);
+                    //if(err<0.7) 
+                    if(err<err_min)
+                    {
+                        err_min  = err;
+                        a_off_solv = a_off;
+                        b_off_solv = b_off;
+                    }
+                    
+                    im.Data[k, j, 0] = err;
+                       // Console.WriteLine(err+" "+ a_off + " " + b_off + " " + r);
+                }
+                b_off += db;
+            }
+
+            var im2 = new Image<Bgr, byte>(j_max, k_max);
+            for (int j = 0; j < j_max; j++)
+            {
+                for (int k = 0; k < k_max; k++)
+                {
+                    var err = im.Data[k, j, 0] - err_min;
+                    err *= 200000;
+                    if (err > 255) err = 255;
+                    im2.Data[k, j, 0] = (byte)err;
+                }
+            }
+            CvInvoke.Imshow("im1_ab", im2);
+            CvInvoke.WaitKey();
+
+            a_off = a_off_solv;
+            b_off = b_off_solv;
+            var dl = kd * 0.5;
+            var dR = kd * 0.5;
+            l -= dl * j_max / 2; 
+            R -= dR * k_max / 2;
+            var l_start = l;
+            var R_start = R;
+            var im3 = new Image<Gray, double>(j_max, k_max);
+            err_min = 1111110d;
+            for (int j = 0; j < j_max; j++)
+            {
+                l = l_start;
+                for (int k = 0; k < k_max; k++)
+                {
+                    l += dl;
+
+                    var max_print_r = max_printing_radius();
+                    comp_delta_table(max_print_r);
+                    var err = estimate_flat_err(abc_ps);
+                    //Console.WriteLine(a_off+" "+b_off+" "+r+" "+  err);
+                    //if(err<0.7) 
+                    if (err < err_min)
+                    {
+                        err_min = err;
+                    }
+
+                    im3.Data[k, j, 0] = err;
+                    // Console.WriteLine(err+" "+ a_off + " " + b_off + " " + r);
+                }
+                R += dR;
+            }
+            Console.WriteLine("err: " + err_min);
+
+            im2= new Image<Bgr,byte>(j_max, k_max);
+            for (int j = 0; j < j_max; j++)
+            {
+                for (int k = 0; k < k_max; k++)
+                {
+                    var err = im3.Data[k, j,0]- err_min;
+                    err *= 200000;
+                    if (err > 255) err = 255;
+                    im2.Data[k, j, 0] =(byte) err;
+                }
+            }
+            CvInvoke.Imshow("im1_lr", im2);
+            CvInvoke.WaitKey();
+            delta_comp_test(0.5 * iter_cur, iter_cur);
+            
+                
+        }
+
+        double estimate_flat_err(long[][] ps_abc)
+        {
+            var ps_xyz = new Point3d_GL[ps_abc.Length];
+            for (int i = 0; i < ps_abc.Length; i++)
+            {
+                ps_xyz[i] = solve_fk(ps_abc[i]).p_xyz;
+            }
+
+            
+            var flat = Point3d_GL.FitPlane(ps_xyz);
+            var err = Math.Sqrt( Point3d_GL.errPlane(ps_xyz, flat));
+            return err;
+        }
         public Point3d_GL delta_ik(Point3d_GL p)
         {
             
@@ -1907,7 +2056,7 @@ namespace tcp_to_udp
             var b_z = cross_tower(p_b_cent, p_b_tower, l);
             var c_z = cross_tower(p_c_cent, p_c_tower, l);
 
-            return new Point3d_GL(a_z,b_z,c_z);
+            return new Point3d_GL(a_z + a_off,b_z + b_off, c_z);
         }
 
         static public double cross_tower(Point3d_GL p_c, Point3d_GL p_tower, double l)
@@ -1937,10 +2086,10 @@ namespace tcp_to_udp
             var p_fit = comp_delta_fitting(p_start, dest_abc);
             var p_fit2 = comp_delta_fitting(p_fit[1], dest_abc);
             var p_fit3 = comp_delta_fitting(p_fit2[1], dest_abc);
-
+            var p_fit4 = comp_delta_fitting(p_fit3[1], dest_abc);
             var e_fk = e_steps / e_steps;
 
-            return new StepperFrame(p_fit3[1], e_fk, 0);
+            return new StepperFrame(p_fit4[1], e_fk, 0);
         }
        
 
@@ -1957,9 +2106,10 @@ namespace tcp_to_udp
         public double delta_fk_table_k = 1;
         public void comp_delta_table(double printing_radius)
         {
+            init_delta_comp();
             var dxy = printing_radius / 10;
             delta_fk_table = new double[2*(int)l, 2 * (int)l, 5];
-            delta_fk_table_k = (15/(2 * l));
+            delta_fk_table_k = (fk_table_dim_1 / (2 * l));
             for (double x = -printing_radius; x<printing_radius; x+=dxy)
             {
                 for (double y = -printing_radius; y < printing_radius; y += dxy)
