@@ -206,7 +206,7 @@ namespace tcp_to_udp
             Console.WriteLine(max_print_r);
             printer.comp_delta_table(max_print_r);
 
-            printer.delta_comp_test();
+            //printer.delta_comp_test();
             
              //show_delta_table(printer.delta_fk_table_ps);
             //var p_abc_ik = printer.delta_ik(new Point3d_GL(0, 0, -174.72));
@@ -380,7 +380,7 @@ namespace tcp_to_udp
                                     var val = val_from_command(command);
                                     //
                                     if (val <= 4) { val = 4; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps4); }
-                                    else { val = 17; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps17); }
+                                    else { val = 18; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps18); }
 
                                     _TCPserver1.pushBuffer_in("M589 X80" + "\n");
 
@@ -449,7 +449,7 @@ namespace tcp_to_udp
                         // Console.WriteLine("len1: " + coms1.Count);
                         var vars_from_mes = mes.Split(' ');
                         var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
-                       // Console.WriteLine(vars_from_mes.Length);
+                        //Console.WriteLine(vars_from_mes.Length);
                         if (vars_from_mes.Length >= 9)
                         {
                             try
@@ -525,11 +525,12 @@ namespace tcp_to_udp
                                         {
                                             printer.delta_calibr_en = false;
                                             printer.delta_comp_prop_calibr();
-                                            _TCPserver1.pushBuffer_in("M589 X80" + "\n");
+                                            _TCPserver1.pushBuffer_in("M589 X180" + "\n");
                                         }
                                         var delta_orig_commands = new List<string>();
                                         delta_orig_commands.Add("G1 X"+cur_frame.p_xyz.x+" Y"+cur_frame.p_xyz.y+" Z" + cur_frame.p_xyz.z + " F1200");
-                                        delta_orig_commands.Add("G1 Z"+printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
+                                        //delta_orig_commands.Add("G1 Z"+2*printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
+                                        delta_orig_commands.Add("G1 Z" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
                                         delta_orig_commands.Add("G1 X" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].x + " Y" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].y);
                                         //prog_orig_commands g code to next point
                                         var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);

@@ -421,9 +421,6 @@ namespace tcp_to_udp
         {
             var err = 0d;
 
-
-            
-
             var errs = new double[points_in.Length];
             for ( var i = 0; i < points_in.Length; i++)
             {
@@ -432,7 +429,7 @@ namespace tcp_to_udp
                 err += Math.Pow(cur_err, 2);
             }
 
-            var p_max = Point3d_GL.Max(points_in);
+            /*var p_max = Point3d_GL.Max(points_in);
             var p_min = Point3d_GL.Min(points_in);
             var p_dim = p_max - p_min;
             var im = new Image<Bgr, byte>((int)p_dim.x, (int)p_dim.y);
@@ -445,7 +442,7 @@ namespace tcp_to_udp
                 if (z < 0) color.V0 = -z * 200;
                 else color.V1 = z * 200;
                 CvInvoke.DrawMarker(im, new Point((int)p_cur.x, (int)p_cur.y), color, MarkerTypes.Cross, 10, 2);
-            }
+            }*/
             //CvInvoke.Imshow("im", im);
            // CvInvoke.WaitKey();
 
@@ -496,6 +493,14 @@ namespace tcp_to_udp
                 planeEquation[i] /= norm;
 
             return new Flat3d_GL(planeEquation[0], planeEquation[1], planeEquation[2], planeEquation[3]);
+        }
+
+        public static Flat3d_GL FitPlane_z(Point3d_GL[] points_in)
+        {
+            var p0 = points_in[0];
+            var p1 = p0 + new Point3d_GL(100, 0, 0);
+            var p2 = p0 + new Point3d_GL(0, 100, 0);
+            return new Flat3d_GL(p0,p1,p2);
         }
         public double magnitude_ax(Ax ax)
         {
