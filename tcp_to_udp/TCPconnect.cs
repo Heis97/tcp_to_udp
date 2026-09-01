@@ -190,9 +190,12 @@ namespace tcp_to_udp
             {
 
                 byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
+                if(_stream != null)
+                {
+                    _stream.Write(send, 0, send.Length);
+                    last_send = send_prog;
+                }
                 
-                _stream.Write(send, 0, send.Length);
-                last_send = send_prog;
             }
             catch (System.IO.IOException e ) 
             {

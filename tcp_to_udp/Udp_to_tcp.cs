@@ -69,19 +69,20 @@ namespace tcp_to_udp
         volatile int[] cameras_monit_inds = new int[] { 0, 1, 2 };
 
         volatile Mat[] last_frame = new Mat[3];
+        SettingsString settins_string;
 
         //int[] ports_cam = { 5000, 5001, 5002 };
         public void connect_udp_all()
         {
-            var settins_string = load_obj<SettingsString>("settings_string.json");
+            settins_string = load_obj<SettingsString>("settings_string.json");
             //ports_cam = settins_string.ports_cam;
             //ListAllCamerasButton_Click();
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
-            //save_obj("settings_string.json", set_test);
+            //save_obj("settings_string.json", settins_string);
             device_numb = settins_string.device_num;
             tcp_client_main = null;
-
+            
             udp_client1 = null;
             GC.Collect();
             udp_client1 = new UdpClient(50000);
@@ -110,11 +111,11 @@ namespace tcp_to_udp
            // Console.WriteLine("start con");
             tcp_client_main.Connection(port_main, ip_main);
 
-            Process.Start("String_line4.exe");
+            //Process.Start("String_line4.exe");
 
 
             //Console.WriteLine("start con done");
-            for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
+            //for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
             while(true)
             {
                 string? input = Console.ReadLine();
@@ -139,6 +140,7 @@ namespace tcp_to_udp
 
         void recieve_udp_all()
         {
+            bool init_g_code = false;
             int count_ins = 0;
 
             long count_send1 = 0;
@@ -159,6 +161,12 @@ namespace tcp_to_udp
 
                 if (_TCPserver1.connected)
                 {
+                    if(!init_g_code)
+                    {
+                        var g_code_com_pid = "M579 P" + settins_string.pid[0] + " I" + settins_string.pid[1] + " D" + settins_string.pid[2];
+                        _TCPserver1.pushBuffer_in(g_code_com_pid + "\n");
+                        init_g_code = true;
+                    }
                     err_con_tcp = true;
                     //data =;
                     if (_TCPserver1.getBufferLen() > 3)
@@ -254,8 +262,8 @@ namespace tcp_to_udp
                 }
                 if (udp_client1.Available > 0)
                 {
-                       
 
+                    //Console.WriteLine("udp1");
                     var res = udp_client1.Receive(ref udp_addres_1);
 
                     long dtime = DateTime.Now.Ticks - last_time_1;
@@ -292,6 +300,7 @@ namespace tcp_to_udp
 
                     //Console.WriteLine(DateTime.Now.Ticks);
                     var mes = Encoding.ASCII.GetString(res) + "\n";
+                    //Console.WriteLine("res1: " + mes);
                     if (res != null)
                     {
                         if (_TCPserver1.connected)
@@ -397,9 +406,10 @@ namespace tcp_to_udp
                     }
                     //Console.WriteLine(DateTime.Now.Ticks);
                     var get_res = Encoding.ASCII.GetString(res);
-                    if(get_res!=null)
+                   // Console.WriteLine("res2: "+get_res);
+                    if (get_res!=null)
                     {
-                        var mes =get_res +"\n";
+                        var mes = get_res +"\n";
 
                        
                             if (_TCPserver1.connected)
@@ -749,10 +759,12 @@ namespace tcp_to_udp
 
         public int[] ports_cam;
         public int device_num;//0...9
+        public double[] pid;//0...9
         public SettingsString()
         {
             ports_cam = new int[3] { 5000, 5001, 5002 };
             device_num = 0;
+            pid = new double[3] { 1, 1, 1 };
         }
 
     }
