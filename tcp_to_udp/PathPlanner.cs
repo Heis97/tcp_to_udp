@@ -14,6 +14,7 @@ using Emgu.CV.Structure;
 using Emgu.CV.UI;
 using Emgu.CV.Util;
 using System.Reflection;
+using Windows.ApplicationModel.Chat;
 
 namespace tcp_to_udp
 {
@@ -491,7 +492,22 @@ namespace tcp_to_udp
             ps_sm.Add(ps[ps.Count - 1]);
             return ps_sm;
         }
-
+        public static List<Point3d_GL> gen_smooth_arc(List<Point3d_GL> ps, double r, double min_dist)
+        {
+            var ps_sm = new List<Point3d_GL>();
+            ps_sm.Add(ps[0]);
+            for (int i = 1; i < ps.Count - 1; i++)
+            {
+                var ps_sec = gen_arc_sect(ps[i - 1], ps[i], ps[i + 1], r, min_dist).ps;
+                for (int j = 0; j < ps_sec.Count; j++)
+                {
+                    var fr = ps[i].Clone();
+                    ps_sm.Add(ps_sec[j]);
+                }
+            }
+            ps_sm.Add(ps[ps.Count - 1]);
+            return ps_sm;
+        }
         public static LinePath gen_arc_sect(Point3d_GL p1, Point3d_GL p2, Point3d_GL p3, double r, double min_dist)
         {
             var v1 = p1 - p2;
@@ -2324,6 +2340,122 @@ namespace tcp_to_udp
         }
 
     }
+    public class StepperLine
+    {
+        static public double min_dist = 0.1;
+
+        public enum LineType { line, arc };
+        public LineType stepType;
+        public double vel = 1;
+        public double acs = 1;
+        public double e_beg = 0;
+        public double e_end = 0;
+        public double vel_begin = 1;
+        public double vel_end = 1;
+        public Point3d_GL p_begin = new Point3d_GL(0, 0, 0);
+        public Point3d_GL p_end = new Point3d_GL(0, 0, 0);
+        public StepperFrame[] frms = null;
+
+
+        public StepperLine (Point3d_GL p_begin, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_beg, double e_end)
+        {
+            this.stepType = LineType.line;
+            this.vel = vel;
+            this.acs = acs;
+            this.vel_begin = vel_begin;
+            this.vel_end = vel_end;
+            this.p_begin = p_begin;
+            this.p_end = p_end;
+            this.e_beg = e_beg;
+            this.e_end = e_end;
+
+            this.frms = comp_frms_line();
+        }
+        public StepperLine(Point3d_GL p_begin, Point3d_GL p_c, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_beg, double e_end, double r)
+        {
+            this.stepType = LineType.arc;
+            this.vel = vel;
+            this.acs = acs;
+            this.vel_begin = vel_begin;
+            this.vel_end = vel_end;
+            this.p_begin = p_begin;
+            this.p_end = p_end;
+
+            this.e_beg = e_beg;
+            this.e_end = e_end;
+
+            var arc = gen_ps_arc(p_begin, p_c, p_end, r, min_dist);
+            if (arc == null) this.frms = null;
+            else
+            {
+                this.frms = comp_frms_line();
+            }
+            
+        }
+
+        public StepperFrame[] comp_frms_line(Point3d_GL p_begin, Point3d_GL p_end, double e_beg, double e_end)
+        {
+
+            return null;
+        }
+        static double cos(double ang)
+        {
+            return Math.Cos(ang);
+        }
+        static double sin(double ang)
+        {
+            return Math.Sin(ang);
+        }
+        static double pi = 3.1415926535;
+
+        public static Point3d_GL[] gen_ps_line(Point3d_GL p1, Point3d_GL p2)
+        {
+            var ps = new List<Point3d_GL>();
+
+
+        }
+        public static Point3d_GL[] gen_ps_arc(Point3d_GL p1, Point3d_GL p2, Point3d_GL p3, double r, double min_dist)
+        {
+            var v1 = p1 - p2;
+            var v2 = p3 - p2;
+
+            var v1_n = v1.normalize();
+            var v2_n = v2.normalize();
+            var vc_n = ((v1_n + v2_n) / 2).normalize();
+            var alpha = Point3d_GL.ang(v1_n, v2_n) / 2;
+            var d1 = r / Math.Sin(alpha);
+            var d2 = r / Math.Tan(alpha);
+            var p3_c = p2 + vc_n * d1;
+            var p1_c = p2 + v1 * d2;
+            var p2_c = p2 + v2 * d2;
+
+            if (2 * d2 > v2.magnitude() || 2 * d2 > v1.magnitude()) return null;
+
+            if (d1 > 1.5*r) return null;
+            //----------------------------------
+            var v_beg = p1_c - p3_c;
+            var v_end = p2_c - p3_c;
+            var ps = new List<Point3d_GL>();
+            var alph = Point3d_GL.ang(v_beg, v_end);
+            var min_alph = min_dist / r;
+            var delim = (int)(alph / min_alph);
+            ps.Add(p1_c);
+            var v_beg_n = v_beg.normalize();
+            var v_end_n = v_end.normalize();
+            for (int i = 1; i < delim; i++)
+            {
+                var fi = (i / (double)delim) * (pi / 2);
+                var v_med = (v_beg_n * cos(fi) + v_end_n * sin(fi)).normalize() * r;
+                ps.Add(p3_c + v_med);
+            }
+            ps.Add(p2_c);
+
+
+            return ps.ToArray();
+        }
+
+    }
+
     public class StepperFrame
     {
         public Point3d_GL p_xyz;   //  mm
@@ -2397,6 +2529,13 @@ namespace tcp_to_udp
             }
 
             return frames;
+        }
+
+        public static StepperFrame[] comp_vel(StepperLine[] lines)
+        {
+            
+
+            return null;
         }
 
 
@@ -2501,6 +2640,40 @@ namespace tcp_to_udp
             return frames_sm.ToArray();
         }
 
+
+        public static StepperFrame[] convert_frames_v3(StepperFrame[] frames, double acs,double r)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+
+            var step_lines = new List<StepperLine>();
+
+            for(int i=1; i<frames.Length;i++)
+            {
+
+                var arc = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i + 1].p_xyz, frames[i].vel, acs, frames[i].vel, frames[i+1].vel, r);               
+                if (arc.frms!=null)
+                {                    
+                    var line = new StepperLine(frames[i-1].p_xyz, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel);
+                    step_lines.Add(line);
+                    step_lines.Add(arc);
+                }
+                else
+                {
+                    var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel);
+                    step_lines.Add(line);
+                }
+            }
+
+            var frms = comp_vel(step_lines.ToArray());
+            var frames_time = frames_calc_time(frms.ToArray());
+
+            //var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
+            return frames_time.ToArray();
+        }
+
+        
+        
         public static string[] test()
         {
             var fr0 = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 10);
