@@ -2348,8 +2348,10 @@ namespace tcp_to_udp
         public LineType stepType;
         public double vel = 1;
         public double acs = 1;
-        public double e_beg = 0;
-        public double e_end = 0;
+        public double e_width1 = 0;
+        public double e_width2 = 0;
+        public double r = 0;
+
         public double vel_begin = 1;
         public double vel_end = 1;
         public Point3d_GL p_begin = new Point3d_GL(0, 0, 0);
@@ -2357,7 +2359,7 @@ namespace tcp_to_udp
         public StepperFrame[] frms = null;
 
 
-        public StepperLine (Point3d_GL p_begin, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_beg, double e_end)
+        public StepperLine (Point3d_GL p_begin, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_width1)
         {
             this.stepType = LineType.line;
             this.vel = vel;
@@ -2366,12 +2368,12 @@ namespace tcp_to_udp
             this.vel_end = vel_end;
             this.p_begin = p_begin;
             this.p_end = p_end;
-            this.e_beg = e_beg;
-            this.e_end = e_end;
-
-            this.frms = comp_frms_line();
+            this.e_width1 = e_width1;
+            
+            var line = gen_ps_line(p_begin, p_end, min_dist);
+            this.frms = comp_frms_line(line);
         }
-        public StepperLine(Point3d_GL p_begin, Point3d_GL p_c, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_beg, double e_end, double r)
+        public StepperLine(Point3d_GL p_begin, Point3d_GL p_c, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_width1, double e_width2, double r)
         {
             this.stepType = LineType.arc;
             this.vel = vel;
@@ -2380,24 +2382,54 @@ namespace tcp_to_udp
             this.vel_end = vel_end;
             this.p_begin = p_begin;
             this.p_end = p_end;
-
-            this.e_beg = e_beg;
-            this.e_end = e_end;
+            this.r = r;
+            this.e_width1 = e_width1;
+            this.e_width2 = e_width2;
 
             var arc = gen_ps_arc(p_begin, p_c, p_end, r, min_dist);
             if (arc == null) this.frms = null;
             else
             {
-                this.frms = comp_frms_line();
+                this.frms = comp_frms_arc(arc);
             }
             
         }
 
-        public StepperFrame[] comp_frms_line(Point3d_GL p_begin, Point3d_GL p_end, double e_beg, double e_end)
+        public StepperFrame[] comp_frms_line(Point3d_GL[] ps)
         {
+            var frames = new StepperFrame[ps.Length];
 
-            return null;
+            frames[0] = new StepperFrame(ps[0],0, vel);
+            for (int i=1; i<ps.Length;i++)
+            {
+                var r = (ps[i] - ps[i-1]).magnitude();
+                frames[i] = new StepperFrame(ps[i], r*e_width1, vel,0,e_width1);
+            }
+
+            return frames;
         }
+
+        public StepperFrame[] comp_frms_arc(Point3d_GL[] ps)
+        {
+            var frames = new StepperFrame[ps.Length];
+            var de = (e_width2 - e_width1)/ps.Length;
+            var dv = (vel_end - vel_begin ) / ps.Length;
+
+            frames[0] = new StepperFrame(ps[0], 0, vel);
+            var e_w_cur = e_width1;
+            var v_cur = vel_begin;
+            for (int i = 1; i < ps.Length; i++)
+            {
+                e_w_cur += de;
+                v_cur += dv;
+                var r = (ps[i] - ps[i - 1]).magnitude();
+                frames[i] = new StepperFrame(ps[i], r * e_w_cur, v_cur, 0, e_w_cur);
+                
+            }
+
+            return frames;
+        }
+
         static double cos(double ang)
         {
             return Math.Cos(ang);
@@ -2408,11 +2440,26 @@ namespace tcp_to_udp
         }
         static double pi = 3.1415926535;
 
-        public static Point3d_GL[] gen_ps_line(Point3d_GL p1, Point3d_GL p2)
+        public static Point3d_GL[] gen_ps_line(Point3d_GL p1, Point3d_GL p2, double min_dist)
         {
             var ps = new List<Point3d_GL>();
 
+            ps.Add(p1);
+            var r = (p2 - p1).magnitude();
+            if(r < 2* min_dist) { ps.Add(p2); return ps.ToArray(); }
+            var len = ( r/ min_dist);
 
+            var dp = (p2 - p1) / len;
+
+            for(int i = 0; i < len-1;i++)
+            {
+                ps.Add(p1+dp*i);
+            }
+
+            ps.Add(p2);
+
+
+            return ps.ToArray();
         }
         public static Point3d_GL[] gen_ps_arc(Point3d_GL p1, Point3d_GL p2, Point3d_GL p3, double r, double min_dist)
         {
@@ -2423,6 +2470,7 @@ namespace tcp_to_udp
             var v2_n = v2.normalize();
             var vc_n = ((v1_n + v2_n) / 2).normalize();
             var alpha = Point3d_GL.ang(v1_n, v2_n) / 2;
+            if(Math.Sin(alpha)<0.001) return null;
             var d1 = r / Math.Sin(alpha);
             var d2 = r / Math.Tan(alpha);
             var p3_c = p2 + vc_n * d1;
@@ -2462,6 +2510,7 @@ namespace tcp_to_udp
         public double e;   //  mm
         public double time_abs;  //  sec
         public double vel;         //  mm/sec
+        public double e_width;  
         
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
@@ -2469,16 +2518,48 @@ namespace tcp_to_udp
             time = _time;
         }*/
         
-        public StepperFrame(Point3d_GL _p_xyz, double _e, double _vel, double time = 0)
+        public StepperFrame(Point3d_GL _p_xyz, double _e, double _vel, double time = 0,double e_width = 0)
         {
             p_xyz = _p_xyz;
             e = _e;
             vel = _vel;
             time_abs = time;
+            this.e_width = e_width;
         }
+
+        static public StepperFrame[] comp_e_width(StepperFrame[] frms)
+        {
+            if (frms == null) return null;
+            if (frms.Length == 0) return null;
+            var frames_comp = new List<StepperFrame>();
+            frames_comp.Add(frms[0]);
+            for (int i = 1; i < frms.Length; i++)
+            {
+                var p1 = frms[i-1].p_xyz;
+                var e1 = frms[i-1].e;
+
+                var p2 = frms[i].p_xyz;
+                var e2 = frms[i].e;
+
+                var r = (p1 - p2).magnitude();
+
+                var frame = frms[i].clone();
+                if (r>0)
+                {
+                    var e_width = (e2 - e1) / r;
+                    frame.e_width = e_width;
+                }
+
+
+                frames_comp.Add(frms[i]);
+
+            }
+            return frames_comp.ToArray();
+        }
+
         public StepperFrame clone()
         {
-            return new StepperFrame(new Point3d_GL(p_xyz.x, p_xyz.y, p_xyz.z), e, vel, time_abs);
+            return new StepperFrame(new Point3d_GL(p_xyz.x, p_xyz.y, p_xyz.z), e, vel, time_abs,e_width);
         }
         static public double calc_time(StepperFrame fr1, StepperFrame fr2)
         {
@@ -2533,8 +2614,30 @@ namespace tcp_to_udp
 
         public static StepperFrame[] comp_vel(StepperLine[] lines)
         {
-            
+            lines[0].vel_begin = 0;
+            for (int i=1; i<lines.Length-1; i++)
+            {
+                if(lines[i].stepType == StepperLine.LineType.line && lines[i-1].stepType == StepperLine.LineType.line)
+                {
+                    lines[i-1].vel_begin = 0;
+                    lines[i].vel_end = 0;
+                }
 
+                if(lines[i].stepType == StepperLine.LineType.arc)
+                {
+                    var v_max = Math.Sqrt(lines[i].r * lines[i].acs);
+                    if(lines[i].vel_begin > v_max)
+                    {
+                        lines[i].vel_begin = v_max;
+                        lines[i - 1].vel_end = 0;
+                    }
+                    if (lines[i].vel_end > v_max)
+                    {
+
+                    }
+                }
+            }
+            lines[lines.Length - 1].vel_end = 0;
             return null;
         }
 
@@ -2641,31 +2744,47 @@ namespace tcp_to_udp
         }
 
 
-        public static StepperFrame[] convert_frames_v3(StepperFrame[] frames, double acs,double r)
+        public static StepperFrame[] convert_frames_v3(StepperFrame[] frames_in, double acs,double r_max)
         {
-            if (frames == null) return null;
-            if (frames.Length == 0) return null;
+            if (frames_in == null) return null;
+            if (frames_in.Length == 0) return null;
 
+            StepperFrame[] frames = comp_e_width(frames_in);
+            //e rel
             var step_lines = new List<StepperLine>();
 
             for(int i=1; i<frames.Length;i++)
             {
-
-                var arc = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i + 1].p_xyz, frames[i].vel, acs, frames[i].vel, frames[i+1].vel, r);               
-                if (arc.frms!=null)
-                {                    
-                    var line = new StepperLine(frames[i-1].p_xyz, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel);
-                    step_lines.Add(line);
-                    step_lines.Add(arc);
+                if(i < frames.Length-1)
+                {
+                    var v_max = Math.Max(frames[i].vel, frames[i + 1].vel);
+                    var r_cur = v_max * v_max / acs;
+                    if (r_cur > r_max) r_cur = r_max;
+                    var arc = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i + 1].p_xyz, frames[i].vel, acs, frames[i].vel, frames[i + 1].vel, frames[i].e_width, frames[i + 1].e_width, r_cur);
+                    if (arc.frms != null)
+                    {
+                        var line = new StepperLine(frames[i - 1].p_xyz, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
+                        step_lines.Add(line);
+                        step_lines.Add(arc);
+                    }
+                    else
+                    {
+                        var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
+                        step_lines.Add(line);
+                    }
                 }
                 else
                 {
-                    var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel);
+                    var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                     step_lines.Add(line);
                 }
             }
 
             var frms = comp_vel(step_lines.ToArray());
+            //filtr ps by dist
+            //comp e abs
+            //smooth extr
+
             var frames_time = frames_calc_time(frms.ToArray());
 
             //var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
