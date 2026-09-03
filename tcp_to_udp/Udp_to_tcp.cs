@@ -20,6 +20,8 @@ using WinRT.Interop;
 using System.Diagnostics;
 
 using Encoder = System.Drawing.Imaging.Encoder;
+using System.Reflection;
+using Emgu.CV.Stitching;
 
 namespace tcp_to_udp
 {
@@ -109,8 +111,8 @@ namespace tcp_to_udp
             udp_addres_2 = new IPEndPoint(IPAddress.Parse(ip2), port_udp2);
             udp_client2.Connect(udp_addres_2);
 
-           
 
+            
 
 
             //commands1.Add(new Command(coms_str.Length + 1, "M588 A1"));
@@ -206,12 +208,23 @@ namespace tcp_to_udp
             Console.WriteLine(max_print_r);
             printer.comp_delta_table(max_print_r);
 
+            prog_orig_commands = new List<string>()
+            {
+                "G1 X0 Y0 F600",
+                "G1 X10 E4",
+                "G1 X10 Y10 E4",
+                "G1 X0 Y10 E4",
+                "G1 X0 Y0 Z0 E4 F600",
+            };
+
+            var frames_xyz_test_2 = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
+            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, printer, offset_frame).ToList();
             //printer.delta_comp_test();
-            
-             //show_delta_table(printer.delta_fk_table_ps);
+
+            //show_delta_table(printer.delta_fk_table_ps);
             //var p_abc_ik = printer.delta_ik(new Point3d_GL(0, 0, -174.72));
             //Console.WriteLine("ik: "+p_abc_ik);
-           // printer.solve_fk(new long[] { 1000, 1000, 1000 });
+            // printer.solve_fk(new long[] { 1000, 1000, 1000 });
             double jog_xyz_vel = 30;
 
             int prev_delta_calib = 0;
@@ -533,9 +546,9 @@ namespace tcp_to_udp
                                         delta_orig_commands.Add("G1 Z" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
                                         delta_orig_commands.Add("G1 X" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].x + " Y" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].y);
                                         //prog_orig_commands g code to next point
-                                        var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
+                                        var frames_xyz_test = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
                                         
-                                        prog_commands = StepperFrame.convert_g_code(frames_xyz, printer, offset_frame).ToList();
+                                        prog_commands = StepperFrame.convert_g_code(frames_xyz_test, printer, offset_frame).ToList();
                                         max_count_cur_prog = prog_commands.Count;
                                         cur_prog_line = 0;
                                         prog_state = programm_state.MOVE;

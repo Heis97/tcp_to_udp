@@ -2502,6 +2502,54 @@ namespace tcp_to_udp
             return ps.ToArray();
         }
 
+
+        public StepperLine comp_vel()
+        {
+            if (frms == null) return null;
+            if (frms.Length == 0) return null;
+            if (stepType == LineType.line)
+            {
+                var r_cur = 0d;
+                frms[0].vel = vel_begin;
+                for (int i = 1; i < frms.Length; i++)
+                {
+                    var dr = (frms[i].p_xyz - frms[i - 1].p_xyz).magnitude();
+                    var D = vel_begin * vel_begin + 2 * acs * r_cur;
+                    var t = (-vel_begin + Math.Sqrt(D)) / acs;
+                    var vel_cur = vel_begin + acs * t;
+
+                    frms[i].vel = vel_cur;
+                }
+
+                r_cur = 0d;
+                frms[frms.Length-1].vel = vel_end;
+                bool stop = false;
+                for (int i = frms.Length-2; i == 0  || stop ; i--)
+                {
+                    var dr = (frms[i].p_xyz - frms[i + 1].p_xyz).magnitude();
+                    var D = vel_begin * vel_begin + 2 * acs * r_cur;
+                    var t = (-vel_begin + Math.Sqrt(D)) / acs;
+                    var vel_cur = vel_begin + acs * t;
+                    if(vel_cur< frms[i].vel)
+                    {
+                        frms[i].vel = vel_cur;
+                    }
+                }
+
+            }
+            else
+            {
+                var vel_cur = vel_begin;
+                var dv = (vel_end - vel_begin)/frms.Length;
+                for( int i = 0; i < frms.Length; i++)
+                {
+                    frms[i].vel = vel_cur;
+                    vel_cur += dv;
+                }
+            }
+            return this;
+        }
+
     }
 
     public class StepperFrame
@@ -2619,8 +2667,8 @@ namespace tcp_to_udp
             {
                 if(lines[i].stepType == StepperLine.LineType.line && lines[i-1].stepType == StepperLine.LineType.line)
                 {
-                    lines[i-1].vel_begin = 0;
-                    lines[i].vel_end = 0;
+                    lines[i].vel_begin = 0;
+                    lines[i - 1].vel_end = 0;
                 }
 
                 if(lines[i].stepType == StepperLine.LineType.arc)
@@ -2629,16 +2677,30 @@ namespace tcp_to_udp
                     if(lines[i].vel_begin > v_max)
                     {
                         lines[i].vel_begin = v_max;
-                        lines[i - 1].vel_end = 0;
+                        lines[i - 1].vel_end = v_max;
                     }
                     if (lines[i].vel_end > v_max)
                     {
-
+                        lines[i].vel_end = v_max;
+                        lines[i + 1].vel_begin = v_max;
                     }
                 }
             }
             lines[lines.Length - 1].vel_end = 0;
-            return null;
+
+
+            for(int i=0; i<lines.Length; i++)
+            {
+                lines[i] = lines[i].comp_vel();
+            }
+
+            var frms = new List<StepperFrame>();
+            for(int i=0; i< lines.Length;i++)
+            {
+                frms.AddRange(lines[i].frms);
+            }
+
+            return frms.ToArray();
         }
 
 
@@ -2781,12 +2843,19 @@ namespace tcp_to_udp
             }
 
             var frms = comp_vel(step_lines.ToArray());
+
             //filtr ps by dist
             //comp e abs
             //smooth extr
 
             var frames_time = frames_calc_time(frms.ToArray());
-
+            Console.WriteLine("_________");
+            for(int i  = 1; i < frames_time.Length; i++)
+            {
+                var dr = (frames_time[i].p_xyz - frames_time[i - 1].p_xyz).magnitude();
+                Console.WriteLine(frames_time[i].time_abs + " "+ frames_time[i].vel);
+            }
+            Console.WriteLine("_________");
             //var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
             return frames_time.ToArray();
         }
@@ -2823,9 +2892,9 @@ namespace tcp_to_udp
 
         public static string[] convert_g_code(StepperFrame[] orig_g_code, StepperPrinter printer, StepperFrame offset)
         {
-            var stepper_frames = convert_frames_v2(
+            var stepper_frames = convert_frames_v3(
                 orig_g_code,
-                5,        //wind
+                500,        //wind
                 0.2);      //min_dist
 
             var coms = new List<string>();
