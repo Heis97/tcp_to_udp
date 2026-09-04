@@ -2848,7 +2848,7 @@ namespace tcp_to_udp
             StepperFrame[] frames = comp_e_width(frames_in);
             //e rel
             var step_lines = new List<StepperLine>();
-            var first_p = frames[1].p_xyz;
+            var first_p = frames[0].p_xyz;
             for (int i=1; i<frames.Length;i++)
             {
                 if(i < frames.Length-1)
@@ -2862,7 +2862,7 @@ namespace tcp_to_udp
                     if (arc.frms != null)
                     {
                         //Console.WriteLine("arc: " + r_cur);
-                        var line = new StepperLine(frames[i - 1].p_xyz, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
+                        var line = new StepperLine(first_p, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                         step_lines.Add(line);
                         step_lines.Add(arc);
                         first_p = arc.frms[arc.frms.Length-1].p_xyz;
@@ -2871,9 +2871,11 @@ namespace tcp_to_udp
                     {
                         if (step_lines[step_lines.Count-1].stepType != StepperLine.LineType.arc)
                         {
+                            Console.WriteLine("step_lines[step_lines.Count-1]");
                             first_p = frames[i - 1].p_xyz;
                         }
-                        var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
+                        Console.WriteLine(first_p);
+                        var line = new StepperLine(first_p, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                         step_lines.Add(line);
                     }
                 }
@@ -2895,8 +2897,8 @@ namespace tcp_to_udp
             for(int i  = 1; i < frames_time.Length; i++)
             {
                 var dr = (frames_time[i].p_xyz - frames_time[i - 1].p_xyz).magnitude();
-                //Console.WriteLine(frames_time[i].time_abs + " " + frames_time[i].vel + " "+ frames_time[i].p_xyz.x);
-                Console.WriteLine(i + " " + frames_time[i].vel + " " + frames_time[i].p_xyz.x);
+                Console.WriteLine(frames_time[i].time_abs + " " + frames_time[i].vel + " "+ frames_time[i].p_xyz.x);
+                //Console.WriteLine(i + " " + frames_time[i].vel + " " + frames_time[i].p_xyz.x);
             }
             Console.WriteLine("_________");
             //var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
@@ -2937,8 +2939,8 @@ namespace tcp_to_udp
         {
             var stepper_frames = convert_frames_v3(
                 orig_g_code,
-                30,        //acs
-                0.7);      //max r
+                0.1,        //acs
+                0.01);      //max r
 
             var coms = new List<string>();
             coms.Add("M588 F0");
