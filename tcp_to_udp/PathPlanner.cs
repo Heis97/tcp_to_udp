@@ -2342,8 +2342,8 @@ namespace tcp_to_udp
     }
     public class StepperLine
     {
-        static public double min_dist = 0.1;
-
+        static public double min_dist = 0.01;
+        static public double min_vel = 0.1;
         public enum LineType { line, arc };
         public LineType stepType;
         public double vel = 1;
@@ -2466,20 +2466,32 @@ namespace tcp_to_udp
             var v1 = p1 - p2;
             var v2 = p3 - p2;
 
+            var dist1 = v1.magnitude();
+            var dist2 = v2.magnitude();
+
             var v1_n = v1.normalize();
             var v2_n = v2.normalize();
             var vc_n = ((v1_n + v2_n) / 2).normalize();
             var alpha = Point3d_GL.ang(v1_n, v2_n) / 2;
-            if(Math.Sin(alpha)<0.001) return null;
+            if (Math.Sin(alpha) < 0.001) { 
+                //Console.WriteLine("Math.Sin(alpha) < 0.001"); 
+                return null; 
+            }
             var d1 = r / Math.Sin(alpha);
             var d2 = r / Math.Tan(alpha);
             var p3_c = p2 + vc_n * d1;
             var p1_c = p2 + v1 * d2;
             var p2_c = p2 + v2 * d2;
 
-            if (2 * d2 > v2.magnitude() || 2 * d2 > v1.magnitude()) return null;
+            if (2 * d2 > dist1 || 2 * d2 > dist2) {
+                //Console.WriteLine("2 * d2 > v2.magnitude() || 2 * d2 > v1.magnitude()"+ 2 * d2+" " + v2.magnitude() + " " + v1.magnitude() + " ");
+                return null; 
+            }
 
-            if (d1 > 1.5*r) return null;
+            if (d1 > 1.5 * r) { 
+                //Console.WriteLine("d1 > 1.5 * r");
+                return null; 
+            }
             //----------------------------------
             var v_beg = p1_c - p3_c;
             var v_end = p2_c - p3_c;
@@ -2511,29 +2523,45 @@ namespace tcp_to_udp
             {
                 var r_cur = 0d;
                 frms[0].vel = vel_begin;
+
                 for (int i = 1; i < frms.Length; i++)
                 {
+                    
                     var dr = (frms[i].p_xyz - frms[i - 1].p_xyz).magnitude();
+                    r_cur += dr;
                     var D = vel_begin * vel_begin + 2 * acs * r_cur;
                     var t = (-vel_begin + Math.Sqrt(D)) / acs;
                     var vel_cur = vel_begin + acs * t;
 
-                    frms[i].vel = vel_cur;
+                    
+
+                    if (vel_cur < frms[i].vel)
+                    {
+                        frms[i].vel = vel_cur;
+                    }
+                     //Console.WriteLine(", r_cur:" + r_cur + ", t:" + t +", frms[i].vel :" + frms[i].vel);
                 }
 
                 r_cur = 0d;
                 frms[frms.Length-1].vel = vel_end;
-                bool stop = false;
-                for (int i = frms.Length-2; i == 0  || stop ; i--)
+                
+                for (int i = frms.Length-2; i >= 0  ; i--)
                 {
+                   // Console.WriteLine(frms[i].vel);
+                    
                     var dr = (frms[i].p_xyz - frms[i + 1].p_xyz).magnitude();
-                    var D = vel_begin * vel_begin + 2 * acs * r_cur;
-                    var t = (-vel_begin + Math.Sqrt(D)) / acs;
-                    var vel_cur = vel_begin + acs * t;
-                    if(vel_cur< frms[i].vel)
+                    r_cur += dr;
+                    var D = vel_end * vel_end + 2 * acs * r_cur;
+                    var t = (-vel_end + Math.Sqrt(D)) / acs;
+                    var vel_cur = vel_end + acs * t;
+                    if(vel_cur < frms[i].vel)
                     {
-                        frms[i].vel = vel_cur;
+                        frms[i+1].vel = vel_cur;
+
                     }
+
+                    //frms[frms.Length - 1].vel = (frms[frms.Length - 2].vel + StepperLine.min_vel)/2;
+                    // Console.WriteLine(", r_cur:" + r_cur + ", t:" + t +", frms[i].vel :" + frms[i].vel);
                 }
 
             }
@@ -2613,6 +2641,7 @@ namespace tcp_to_udp
         {
             var dist = (fr1.p_xyz-fr2.p_xyz).magnitude();
             if(dist ==0) dist = Math.Abs (fr1.e - fr2.e);
+            if (fr2.vel == 0) return 0;
             return dist / fr2.vel;
         }
         static public StepperFrame[] frame_divide(StepperFrame frame_prev, StepperFrame frame_cur, double min_dist = 0.1)
@@ -2653,8 +2682,10 @@ namespace tcp_to_udp
             for (var i = 1; i < frames.Length; i++)
             {
                 var dtime = calc_time(frames[i - 1], frames[i]);
+                
                 time_abs += dtime;
                 frames[i].time_abs = time_abs;
+                //Console.WriteLine(dtime);
             }
 
             return frames;
@@ -2662,16 +2693,17 @@ namespace tcp_to_udp
 
         public static StepperFrame[] comp_vel(StepperLine[] lines)
         {
-            lines[0].vel_begin = 0;
-            for (int i=1; i<lines.Length-1; i++)
+            lines[0].vel_begin = StepperLine.min_vel;
+            for (int i=1; i<lines.Length; i++)
             {
                 if(lines[i].stepType == StepperLine.LineType.line && lines[i-1].stepType == StepperLine.LineType.line)
                 {
-                    lines[i].vel_begin = 0;
-                    lines[i - 1].vel_end = 0;
+                    lines[i].vel_begin = StepperLine.min_vel;
+                    lines[i - 1].vel_end = StepperLine.min_vel;
                 }
 
-                if(lines[i].stepType == StepperLine.LineType.arc)
+
+                if(lines[i].stepType == StepperLine.LineType.arc && i!= lines.Length-1)
                 {
                     var v_max = Math.Sqrt(lines[i].r * lines[i].acs);
                     if(lines[i].vel_begin > v_max)
@@ -2686,11 +2718,13 @@ namespace tcp_to_udp
                     }
                 }
             }
-            lines[lines.Length - 1].vel_end = 0;
+            lines[lines.Length - 1].vel_end = StepperLine.min_vel;
 
+            Console.WriteLine("__________comp_vel__________________"); 
 
             for(int i=0; i<lines.Length; i++)
             {
+               // Console.WriteLine(lines[i].vel_begin+" "+ lines[i].vel_end+" "+ lines[i].vel);
                 lines[i] = lines[i].comp_vel();
             }
 
@@ -2814,23 +2848,31 @@ namespace tcp_to_udp
             StepperFrame[] frames = comp_e_width(frames_in);
             //e rel
             var step_lines = new List<StepperLine>();
-
-            for(int i=1; i<frames.Length;i++)
+            var first_p = frames[1].p_xyz;
+            for (int i=1; i<frames.Length;i++)
             {
                 if(i < frames.Length-1)
                 {
                     var v_max = Math.Max(frames[i].vel, frames[i + 1].vel);
                     var r_cur = v_max * v_max / acs;
                     if (r_cur > r_max) r_cur = r_max;
+
                     var arc = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i + 1].p_xyz, frames[i].vel, acs, frames[i].vel, frames[i + 1].vel, frames[i].e_width, frames[i + 1].e_width, r_cur);
+                    
                     if (arc.frms != null)
                     {
+                        //Console.WriteLine("arc: " + r_cur);
                         var line = new StepperLine(frames[i - 1].p_xyz, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                         step_lines.Add(line);
                         step_lines.Add(arc);
+                        first_p = arc.frms[arc.frms.Length-1].p_xyz;
                     }
                     else
                     {
+                        if (step_lines[step_lines.Count-1].stepType != StepperLine.LineType.arc)
+                        {
+                            first_p = frames[i - 1].p_xyz;
+                        }
                         var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                         step_lines.Add(line);
                     }
@@ -2849,11 +2891,12 @@ namespace tcp_to_udp
             //smooth extr
 
             var frames_time = frames_calc_time(frms.ToArray());
-            Console.WriteLine("_________");
+            Console.WriteLine("frames_time_________");
             for(int i  = 1; i < frames_time.Length; i++)
             {
                 var dr = (frames_time[i].p_xyz - frames_time[i - 1].p_xyz).magnitude();
-                Console.WriteLine(frames_time[i].time_abs + " "+ frames_time[i].vel);
+                //Console.WriteLine(frames_time[i].time_abs + " " + frames_time[i].vel + " "+ frames_time[i].p_xyz.x);
+                Console.WriteLine(i + " " + frames_time[i].vel + " " + frames_time[i].p_xyz.x);
             }
             Console.WriteLine("_________");
             //var frames_conv = frames_convert_to_steps(frames_sm, p_xyz_steps, e_steps, t_coef);
@@ -2894,8 +2937,8 @@ namespace tcp_to_udp
         {
             var stepper_frames = convert_frames_v3(
                 orig_g_code,
-                500,        //wind
-                0.2);      //min_dist
+                30,        //acs
+                0.7);      //max r
 
             var coms = new List<string>();
             coms.Add("M588 F0");
