@@ -208,17 +208,27 @@ namespace tcp_to_udp
             Console.WriteLine(max_print_r);
             printer.comp_delta_table(max_print_r);
 
-            prog_orig_commands = new List<string>()
+            /*prog_orig_commands = new List<string>()
             {
                 "G1 X0 Y0 F600",
-                "G1 X10 E4",
-                "G1 X10 Y10 E4",
-                "G1 X0 Y10 E4",
-                "G1 X0 Y0 Z0 E4 F600",
+                "G1 X10 E8",
+                "G1 X10 Y10 E12",
+                "G1 X0 Y10 E16",
+                "G1 X0 Y0 Z0 E20 F600",
+                "G1 X0 Y0 F600",
+                "G1 X10 E8",
+                "G1 X10 Y10 E12",
+                "G1 X0 Y10 E16",
+                "G1 X0 Y0 Z0 E20 F600",
+                "G1 X0 Y0 F600",
+                "G1 X10 E8",
+                "G1 X10 Y10 E12",
+                "G1 X0 Y10 E16",
+                "G1 X0 Y0 Z0 E20 F600",
             };
 
             var frames_xyz_test_2 = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
-            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, printer, offset_frame).ToList();
+            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, printer, offset_frame).ToList();*/
             //printer.delta_comp_test();
 
             //show_delta_table(printer.delta_fk_table_ps);
