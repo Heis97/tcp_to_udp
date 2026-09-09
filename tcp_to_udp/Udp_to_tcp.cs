@@ -472,29 +472,31 @@ namespace tcp_to_udp
                         // Console.WriteLine("len1: " + coms1.Count);
                         var vars_from_mes = mes.Split(' ');
                         var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
+                        
                         //Console.WriteLine(vars_from_mes.Length);
-                        if (vars_from_mes.Length >= 9)
+                        if (vars_from_mes.Length >= 9 )
                         {
                             try
                             {
-                               
+
+                                var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
+
                                 //cur position-----------------------------------------------------------------
-                                var cur_printer_x = Convert.ToInt64(vars_from_mes[3]);
-                                var cur_printer_y = Convert.ToInt64(vars_from_mes[4]);
-                                var cur_printer_z = Convert.ToInt64(vars_from_mes[5]);
-                                var cur_printer_e = Convert.ToInt64(vars_from_mes[6]);
+                                if (cur_send == 1)
+                                {
+                                    var cur_poses = new long[8];
+                                    for (int i = 0; i < 8; i++)
+                                    {
+                                        cur_poses[i] = Convert.ToInt64(vars_from_mes[4 + i]);
+                                    }
 
-                                cur_pos = new long[] { cur_printer_x, cur_printer_y, cur_printer_z, cur_printer_e };
-                                
-                                //Console.WriteLine(cur_frame.p_xyz);
 
-                                var del_pos = new long[] { cur_pos[0] - prev_pos[0], cur_pos[1] - prev_pos[1], cur_pos[2] - prev_pos[2] };
-                                
-                                var xyz_delt = Math.Abs(del_pos[0]) + Math.Abs(del_pos[1]) + Math.Abs(del_pos[2]);
-                                //if(xyz_delt>0) Console.WriteLine(del_pos[0] + " " + del_pos[1] + " " + del_pos[2]);
-                                cur_frame = printer.solve_fk(cur_pos);
+                                    cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[3] };
+
+                                    cur_frame = printer.solve_fk(cur_pos);
+                                }
                                 var cur_prog_line_board = Convert.ToInt64(vars_from_mes[2]);
-                                //Console.WriteLine(cur_prog_line +" "+ cur_prog_line_board);
+
                                 //prog_work-----------------------------------------------------------------
                                 if (prog_state == programm_state.MOVE && cur_prog_line - cur_prog_line_board < 150)
                                 {
