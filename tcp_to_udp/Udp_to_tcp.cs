@@ -86,12 +86,12 @@ namespace tcp_to_udp
 
         public void connect_udp_all()
         {
-            var settins_string = load_obj<SettingsString>("settings_string.json");
+            //var settins_string = load_obj<SettingsString>("settings_printer.json");
             //ports_cam = settins_string.ports_cam;
             //ListAllCamerasButton_Click();
             //var set_test = new SettingsString();
             //set_test.ports_cam = ports_cam;
-            //save_obj("settings_string.json", set_test);
+            //save_obj("settings_printer2.json", set_test);
             device_numb = 0;
             tcp_client_main = null;
 
@@ -410,6 +410,11 @@ namespace tcp_to_udp
                                     printer.delta_calibr_en = true;
 
                                    // Console.WriteLine("printer.delta_calibr_en = true;");
+                                }
+                                else if (command.Contains("M614"))//settings load
+                                {
+
+                                    load_settings();
                                 }
                             }
                         }
@@ -747,6 +752,53 @@ namespace tcp_to_udp
 
 
         }
+
+        public void load_settings()
+        {
+            var settins_string = load_obj<SettingsString>("settings_printer.json");
+
+
+           /* a_max1[i] = 2;
+            v_def1[i] = 2;
+            end_inv1[i] = false;
+            motor_dir1[i] = 1;
+            steps_per_mm1[i] = 100;
+            home_dir1[i] = 1;
+            home_pos1[i] = 0;*/
+
+            for (int i = 0; i<settins_string.motors_count1;i++)
+            {
+                _TCPserver1.pushBuffer_in("M587" + 
+                    " I" + i + 
+                    " A" + Math.Round(settins_string.a_max1[i],3) +
+                    " V" + Math.Round(settins_string.v_def1[i], 3) +
+                    " E" + settins_string.end_inv1[i] +
+                    " D" + settins_string.motor_dir1[i] +
+                    " R" + settins_string.steps_per_mm1[i] +
+                    " K" + settins_string.home_dir1[i] +
+                    " B" + settins_string.home_pos1[i] +
+                    "\n");
+            }
+
+            for (int i = 0; i < settins_string.motors_count2; i++)
+            {
+                _TCPserver1.pushBuffer_in("M586" +
+                    " I" + i +
+                    " A" + Math.Round(settins_string.a_max2[i], 3) +
+                    " V" + Math.Round(settins_string.v_def2[i], 3) +
+                    " E" + settins_string.end_inv2[i] +
+                    " D" + settins_string.motor_dir2[i] +
+                    " R" + settins_string.steps_per_mm2[i] +
+                    " K" + settins_string.home_dir2[i] +
+                    " B" + settins_string.home_pos2[i] +
+                    "\n");
+            }
+
+
+
+            //save_obj("settings_printer.json", settins_string);
+
+        }
         static int val_from_command(string cmd)
         {
             var command_af = cmd.Replace("  ", " ");
@@ -860,6 +912,8 @@ namespace tcp_to_udp
             }
         }
 
+        
+
         public static double[] comp_delt_mats(Mat[] frames_st, Mat[] frames_past)
         {
             var delts = new double[frames_st.Length];
@@ -953,13 +1007,101 @@ namespace tcp_to_udp
 
     class SettingsString
     {
+        //планировщик
+        public double max_acs;
+        public double max_r;
+        public double min_dist;
 
-        public int[] ports_cam;
-        public int device_num;//0...9
+        //настройки моторов
+        public int motors_count1 = 8;
+
+        public double[] a_max1;
+        public double[] v_def1;
+        public int[] end_inv1;
+        public int[] motor_dir1;
+        public int[] steps_per_mm1;
+        public int[] home_dir1;
+        public int[] home_pos1;
+        public int[] soft_max_pos1;
+        public int[] soft_min_pos1;
+
+        public int motors_count2 = 8;
+
+        public double[] a_max2;
+        public double[] v_def2;
+        public int[] end_inv2;
+        public int[] motor_dir2;
+        public int[] steps_per_mm2;
+        public int[] home_dir2;
+        public int[] home_pos2;
+        public int[] soft_max_pos2;
+        public int[] soft_min_pos2;
+
+        //настройки спец возможн
+        public int[] left_manip_pos_change  = new int[] { 0, 0 }; // rot, vert
+        public int[] left_manip_pos_give    = new int[] { 0, 0 };// rot, vert
+
+        public int[] right_manip_pos_change = new int[] { 0, 0 }; // rot, vert
+        public int[] right_manip_pos_give   = new int[] { 0, 0 };// rot, vert
+
+        public int[] left_oscil_pos_change  = new int[] { 0, 0 }; // rot, vert
+        public int[] left_oscil_pos_give    = new int[] { 0, 0 };// rot, vert
+
+        public int[] right_oscil_pos_change = new int[] { 0, 0 }; // rot, vert
+        public int[] right_oscil_pos_give   = new int[] { 0, 0 };// rot, vert
+
+        public int table_work_pos   = 0;
+        public int table_change_pos = 0;
+        public int lift_up_val      = 0;
+
+
+
         public SettingsString()
         {
-            ports_cam = new int[3] { 5000, 5001, 5002 };
-            device_num = 0;
+            a_max1 =  new double[motors_count1];
+            v_def1 =  new double[motors_count1];
+            end_inv1 =  new int[motors_count1];
+            motor_dir1 = new int[motors_count1];
+            steps_per_mm1 = new int[motors_count1];
+            home_dir1 =  new int[motors_count1];
+            home_pos1 =  new int[motors_count1];
+
+            a_max2 =  new double[motors_count2];
+            v_def2 =  new double[motors_count2];
+            end_inv2 =  new int[motors_count2];
+            motor_dir2 = new int[motors_count2];
+            steps_per_mm2 = new int[motors_count2];
+            home_dir2 =  new int[motors_count2];
+            home_pos2 =  new int[motors_count2];
+
+            for (int i = 0; i < motors_count1; i++)
+            {
+                a_max1[i]     = 2;
+                v_def1[i]     = 2;
+                end_inv1[i]   = 0;
+                motor_dir1[i] = 1;
+                steps_per_mm1[i] = 100;
+                home_dir1[i]  = 1;
+                home_pos1[i]  = 0;
+            }
+
+            for (int i = 0; i < motors_count2; i++)
+            {
+                a_max2[i]     = 2;
+                v_def2[i]     = 2;
+                end_inv2[i]   = 0;
+                motor_dir2[i] = 1;
+                steps_per_mm2[i] = 100;
+                home_dir2[i]  = 1;
+                home_pos2[i]  = 0;
+            }
+        }
+
+        public void apply_planner_settings()
+        {
+            StepperLine.min_dist = min_dist;
+            StepperLine.printer_max_r = max_r;
+            StepperLine.printer_max_acs = max_acs;
         }
 
     }
