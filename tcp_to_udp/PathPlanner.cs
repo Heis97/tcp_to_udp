@@ -3021,14 +3021,14 @@ namespace tcp_to_udp
                 StepperLine.printer_max_r);      //max r  mm
 
             var coms = new List<string>();
-            coms.Add("M588 F0");
+            coms.Add("num1 M588 F0");
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 stepper_frames[i].p_xyz += offset.p_xyz;
                 //Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
-                var com = "M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
-                if (i == 40) coms.Add("M588 A1 D0 C"+ stepper_frames.Length);
+                var com = "num1 M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
+                if (i == 40) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
                 coms.Add(com);
             }   
             //coms.Add("M588 A0 D0 C" + stepper_frames.Length);

@@ -270,152 +270,156 @@ namespace tcp_to_udp
                             //Console.WriteLine("command: " + command);
                             if (command.Length > 3)
                             {
-                                if (command.Contains("M585") || command.Contains("M577") || command.Contains("M578") || command.Contains("M579") || command.Contains("M580") || command.Contains("M584") || command.Contains("M587") || command.Contains("M588") || command.Contains("M589"))
+                                if (command.Contains("num1"))
                                 {
                                     Console.WriteLine("add com1: " + command);
-                                    commands1.Add(new Command(command_counter1, command));
-
-
-
+                                    var com_board = command.Replace("num1", "").Trim();
+                                    commands1.Add(new Command(command_counter1, com_board));
                                     command_counter1++;
                                 }
-                                else if (command.Contains("M585") || command.Contains("M581"))
+                                else if (command.Contains("num2"))
                                 {
                                     Console.WriteLine("add com2: " + command);
-                                    commands2.Add(new Command(command_counter2, command));
+                                    var com_board = command.Replace("num2", "").Trim();
+                                    commands2.Add(new Command(command_counter2, com_board));
                                     command_counter2++;
                                 }
-                                else if (command.Contains("M590")|| command.Contains("M591"))
+                                else if (command.Contains("main"))
                                 {
-
-                                    //Console.WriteLine("add com3: " + command);
-                                    var command_af = command.Replace("  ", " ");
-                                    command_af = command_af.Replace("  ", " ");
-                                    var vars = command_af.Trim().Split(' ');
-
-                                    if (vars.Length > 2)
+                                    var com_board = command.Replace("main", "").Trim();
+                                    if (command.Contains("M590") || command.Contains("M591"))
                                     {
-                                        var ind_cam = Convert.ToInt32(vars[1]);
-                                        var val = Convert.ToInt32(vars[2]);
-                                        //Console.WriteLine(ind_cam + " " + val);
-                                        if (command.Contains("M590"))
+
+                                        //Console.WriteLine("add com3: " + command);
+                                        var command_af = com_board.Replace("  ", " ");
+                                        command_af = command_af.Replace("  ", " ");
+                                        var vars = command_af.Trim().Split(' ');
+
+                                        if (vars.Length > 2)
                                         {
-                                            _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
-                                        }
-                                        else if(command.Contains("M591"))
-                                        {
-                                            ports_cam[ind_cam] = val;
+                                            var ind_cam = Convert.ToInt32(vars[1]);
+                                            var val = Convert.ToInt32(vars[2]);
+                                            //Console.WriteLine(ind_cam + " " + val);
+                                            if (command.Contains("M590"))
+                                            {
+                                                _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
+                                            }
+                                            else if (command.Contains("M591"))
+                                            {
+                                                ports_cam[ind_cam] = val;
+                                            }
                                         }
                                     }
-                                }
-                                else if (command.Contains("M592"))
-                                {
-                                    var auto_set_cams = new Thread(auto_setup_cams);
-                                    auto_set_cams.Start();
-                                }
+                                    else if (command.Contains("M592"))
+                                    {
+                                        var auto_set_cams = new Thread(auto_setup_cams);
+                                        auto_set_cams.Start();
+                                    }
 
-                                else if (command.Contains("M593"))
-                                {
-                                    
-                                    tcp_client_main.Connection(port_main, ip_main);
-                                }
+                                    else if (command.Contains("M593"))
+                                    {
 
-                                else if (command.Contains("M594"))
-                                {
-                                    var val = val_from_command(command);
-                                    string_is_ending = val;
-                                    tcp_client_main.send_mes(device_numb + "" + string_is_ending+""+ pound_is_ending);
-                                }
-                                else if (command.Contains("M595"))
-                                {
-                                    var val = val_from_command(command);
-                                    pound_is_ending = val;
-                                    tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
-                                }
+                                        tcp_client_main.Connection(port_main, ip_main);
+                                    }
 
-                                else if (command.Contains("M596")) // prog load
-                                {
-                                    var com_re = command.Replace("M596 ", "").Trim();
-                                    prog_orig_commands.Add(com_re);
-                                    //prog_commands.Add(com_re);//orig
-                                    //Console.WriteLine(com_re);
+                                    else if (command.Contains("M594"))
+                                    {
+                                        var val = val_from_command(com_board);
+                                        string_is_ending = val;
+                                        tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
+                                    }
+                                    else if (command.Contains("M595"))
+                                    {
+                                        var val = val_from_command(com_board);
+                                        pound_is_ending = val;
+                                        tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
+                                    }
+
+                                    else if (command.Contains("M596")) // prog load
+                                    {
+                                        var com_re = com_board.Replace("M596 ", "").Trim();
+                                        prog_orig_commands.Add(com_re);
+                                        //prog_commands.Add(com_re);//orig
+                                        //Console.WriteLine(com_re);
+                                    }
+
+                                    else if (command.Contains("M597"))// prog control
+                                    {
+                                        var val = val_from_command(com_board);
+                                        Console.WriteLine("M597 val: " + val);
+                                        if (val == 0)
+                                        {
+                                            var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
+
+                                            prog_commands = StepperFrame.convert_g_code(frames_xyz, printer, offset_frame).ToList();
+                                            cur_prog_line = 0;
+                                            prog_state = programm_state.MOVE;
+                                            Console.WriteLine("move");
+                                        }
+                                        else if (val == 1)
+                                        {
+                                            prog_state = programm_state.PAUSE;
+                                        }
+                                        else
+                                        {
+                                            _TCPserver1.pushBuffer_in("num1 M588 A0" + "\n");
+                                            prog_state = programm_state.STOP;
+                                        }
+                                    }
+                                    else if (command.Contains("M598")) // prog clear
+                                    {
+                                        prog_commands = new List<string>();
+                                        prog_orig_commands = new List<string>();
+                                    }
+                                    else if (command.Contains("M610"))//set jog vel
+                                    {
+                                        var val = val_from_command_d(com_board);
+                                        jog_xyz_vel = val;
+                                    }
+
+                                    else if (command.Contains("M611"))//jog 
+                                    {
+                                        if (prog_state == programm_state.STOP || prog_state == programm_state.PAUSE)
+                                        {
+                                            var val = val_from_command(com_board);
+                                            var jog_orig = new List<StepperFrame>();
+                                            var fr_cur = printer.solve_fk(cur_pos);
+                                            fr_cur.vel = jog_xyz_vel;
+                                            jog_orig.Add(fr_cur);
+                                            var fr_jog = fr_cur.clone();
+                                            fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, 100);
+                                            jog_orig.Add(fr_jog);
+                                            cur_jog_line = 0;
+                                            jog_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
+
+                                            prog_state = programm_state.JOG;
+                                        }
+                                    }
+                                    else if (command.Contains("M612"))//set_zero
+                                    {
+                                        offset_frame = cur_frame;
+                                    }
+                                    else if (command.Contains("M613"))//set_zero
+                                    {
+
+                                        var val = val_from_command(com_board);
+                                        //
+                                        if (val <= 4) { val = 4; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps4); }
+                                        else { val = 18; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps18); }
+
+                                        _TCPserver1.pushBuffer_in("main M589 X80" + "\n");
+
+                                        printer.delta_calibr_en = true;
+
+                                        // Console.WriteLine("printer.delta_calibr_en = true;");
+                                    }
+                                    else if (command.Contains("M614"))//settings load
+                                    {
+
+                                        load_settings();
+                                    }
                                 }
                                 
-                                else if (command.Contains("M597"))// prog control
-                                {
-                                    var val = val_from_command(command);
-                                    Console.WriteLine("M597 val: "+ val);
-                                    if (val == 0)
-                                    {
-                                        var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
-
-                                        prog_commands = StepperFrame.convert_g_code(frames_xyz, printer,offset_frame).ToList();
-                                        cur_prog_line = 0;
-                                        prog_state = programm_state.MOVE;
-                                        Console.WriteLine("move");
-                                    }
-                                    else if (val == 1)
-                                    {
-                                        prog_state = programm_state.PAUSE;
-                                    }
-                                    else
-                                    {
-                                        _TCPserver1.pushBuffer_in("M588 A0" + "\n");
-                                        prog_state = programm_state.STOP;
-                                    }
-                                }
-                                else if (command.Contains("M598")) // prog clear
-                                {
-                                    prog_commands = new List<string>();
-                                    prog_orig_commands = new List<string>();
-                                }
-                                else if (command.Contains("M610"))//set jog vel
-                                {
-                                    var val = val_from_command_d(command);
-                                    jog_xyz_vel = val;
-                                }
-
-                                else if (command.Contains("M611"))//jog 
-                                {
-                                    if(prog_state == programm_state.STOP || prog_state == programm_state.PAUSE)
-                                    {
-                                        var val = val_from_command(command);
-                                        var jog_orig = new List<StepperFrame>();
-                                        var fr_cur = printer.solve_fk(cur_pos);
-                                        fr_cur.vel = jog_xyz_vel;
-                                        jog_orig.Add(fr_cur);
-                                        var fr_jog = fr_cur.clone();
-                                        fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, 100);
-                                        jog_orig.Add(fr_jog);
-                                        cur_jog_line = 0;
-                                        jog_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer, new StepperFrame(new Point3d_GL(0,0,0),0,0)).ToList();
-
-                                        prog_state = programm_state.JOG;
-                                    }
-                                }
-                                else if (command.Contains("M612"))//set_zero
-                                {
-                                    offset_frame = cur_frame;
-                                }
-                                else if (command.Contains("M613"))//set_zero
-                                {
-                                    
-                                    var val = val_from_command(command);
-                                    //
-                                    if (val <= 4) { val = 4; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps4); }
-                                    else { val = 18; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps18); }
-
-                                    _TCPserver1.pushBuffer_in("M589 X80" + "\n");
-
-                                    printer.delta_calibr_en = true;
-
-                                   // Console.WriteLine("printer.delta_calibr_en = true;");
-                                }
-                                else if (command.Contains("M614"))//settings load
-                                {
-
-                                    load_settings();
-                                }
                             }
                         }
                     }
@@ -533,7 +537,7 @@ namespace tcp_to_udp
 
                                     if (prev_homing - cur_homing == 1)
                                     {
-                                        _TCPserver1.pushBuffer_in("M589 Y80" + "\n");
+                                        _TCPserver1.pushBuffer_in("num1 M589 Y80" + "\n");
                                         printer.delta_calibr_counter = 0;
 
                                         Console.WriteLine("prev_homing - cur_homing == 1");
@@ -555,7 +559,7 @@ namespace tcp_to_udp
                                         {
                                             printer.delta_calibr_en = false;
                                             printer.delta_comp_prop_calibr();
-                                            _TCPserver1.pushBuffer_in("M589 X180" + "\n");
+                                            _TCPserver1.pushBuffer_in("num1 M589 X180" + "\n");
                                         }
                                         var delta_orig_commands = new List<string>();
                                         delta_orig_commands.Add("G1 X"+cur_frame.p_xyz.x+" Y"+cur_frame.p_xyz.y+" Z" + cur_frame.p_xyz.z + " F1200");
@@ -595,7 +599,7 @@ namespace tcp_to_udp
                                     {
                                         Console.WriteLine(delta_calib_go_next_p + " " + cur_ring_buf_en + " " + cur_prog_line + " " + max_count_cur_prog / 2);
                                         Console.WriteLine("delta_calib_go_next_p && cur_ring_buf_en == 0");
-                                        _TCPserver1.pushBuffer_in("M589 Y80" + "\n");
+                                        _TCPserver1.pushBuffer_in("num1 M589 Y80" + "\n");
                                         delta_calib_go_next_p = false;
                                     }
                                     
@@ -676,38 +680,13 @@ namespace tcp_to_udp
                         {
                             _TCPserver1.pushBuffer(mes);
                         }
-                        //Console.WriteLine(mes);
-                        // Console.WriteLine("len1: " + coms1.Count);
-
-                        var vars_from_mes = mes.Split(' ');
-                       // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
-                        //Console.WriteLine(vars_from_mes.Length);
-                        if (vars_from_mes.Length >= 6)
-                        {
-                            try
-                            {
-
-                                if ((long)Convert.ToDouble(vars_from_mes[2]) == 0)
-                                {
-
-
-                                    //Console.Clear();
-                                   // Console.WriteLine("2: "+mes);
-
-                                }
-                            }
-                            catch
-                            {
-
-                            }
-                        }
-
 
                         if (commands2.Count > 0)
                         {
                             var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
                             //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                             var cur_num_ins = commands2[0].num - count_send2;
+                            Console.WriteLine("send2 com pre: " + cur_num_board + "/" + cur_num_ins + " " + count_send2 + " " + commands2[0].com);
                             if (!initing2)
                             {
                                 initing2 = true;
@@ -723,7 +702,7 @@ namespace tcp_to_udp
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur);
                                 udp_client2.Send(mes_out, mes_out.Length);
 
-                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                                Console.WriteLine("send2 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
@@ -768,7 +747,7 @@ namespace tcp_to_udp
 
             for (int i = 0; i<settins_string.motors_count1;i++)
             {
-                _TCPserver1.pushBuffer_in("M587" + 
+                _TCPserver1.pushBuffer_in("num1 M587" + 
                     " I" + i + 
                     " A" + Math.Round(settins_string.a_max1[i],3) +
                     " V" + Math.Round(settins_string.v_def1[i], 3) +
@@ -782,7 +761,7 @@ namespace tcp_to_udp
 
             for (int i = 0; i < settins_string.motors_count2; i++)
             {
-                _TCPserver1.pushBuffer_in("M586" +
+                _TCPserver1.pushBuffer_in("num2 M587" +
                     " I" + i +
                     " A" + Math.Round(settins_string.a_max2[i], 3) +
                     " V" + Math.Round(settins_string.v_def2[i], 3) +
@@ -985,11 +964,7 @@ namespace tcp_to_udp
 
         }
 
-
-
     }
-
-
 
 
     class Command
