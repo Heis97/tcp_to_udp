@@ -235,7 +235,7 @@ namespace tcp_to_udp
             //var p_abc_ik = printer.delta_ik(new Point3d_GL(0, 0, -174.72));
             //Console.WriteLine("ik: "+p_abc_ik);
             // printer.solve_fk(new long[] { 1000, 1000, 1000 });
-            double jog_xyz_vel = 30;
+            double jog_xyz_vel = 10;
 
             int prev_delta_calib = 0;
             int prev_homing = 0;
@@ -349,12 +349,13 @@ namespace tcp_to_udp
                                         Console.WriteLine("M597 val: " + val);
                                         if (val == 0)
                                         {
-                                            var frames_xyz = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
-
-                                            prog_commands = StepperFrame.convert_g_code(frames_xyz, printer, offset_frame).ToList();
+                                            var frames_xyz_list = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer).ToList();
+                                            frames_xyz_list.Insert(0, new StepperFrame(cur_frame.p_xyz - offset_frame.p_xyz, 0, jog_xyz_vel));
+                                            prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(), printer, offset_frame).ToList();
                                             cur_prog_line = 0;
                                             prog_state = programm_state.MOVE;
-                                            Console.WriteLine("move");
+                                            //Console.WriteLine("move");
+                                            
                                         }
                                         else if (val == 1)
                                         {
@@ -417,6 +418,19 @@ namespace tcp_to_udp
                                     {
 
                                         load_settings();
+                                    }
+                                    else if (command.Contains("M615"))//move zero p
+                                    {
+
+                                        var frames_xyz_list = new StepperFrame[]
+                                        {
+                                            new StepperFrame(cur_frame.p_xyz-offset_frame.p_xyz,0,jog_xyz_vel),
+                                            new StepperFrame(new Point3d_GL(),0,jog_xyz_vel),
+                                        };
+                                        prog_commands = StepperFrame.convert_g_code(frames_xyz_list, printer, offset_frame).ToList();
+                                        cur_prog_line = 0;
+                                        prog_state = programm_state.MOVE;
+                                        Console.WriteLine("move");
                                     }
                                 }
                                 

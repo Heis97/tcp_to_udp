@@ -1784,17 +1784,17 @@ namespace tcp_to_udp
         static double sin30 = 0.5;
 
 
-        static double steps_xyz = 80;
+        static double steps_xyz = 800;
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
-        public double e_steps = 100;
+        public double e_steps = 800;
         public double t_coef = 104616.18;
 
-        public double R = 141; //150
-        public double r = 34;  //40
-        public double l = 218;  //215
+        public double R = 176.5;// 141; //150
+        public double r = 47.5;//34;  //40
+        public double l = 320;//218;  //215
         public double printing_r = 100;
-        public double a_off = 0.3; //0
-        public double b_off = 0.24; //0
+        public double a_off = 0;// 0.3; //0
+        public double b_off = 0;// 0.24; //0
 
         Point3d_GL p_a_cent_off = new Point3d_GL();
         Point3d_GL p_b_cent_off = new Point3d_GL();
@@ -2928,6 +2928,7 @@ namespace tcp_to_udp
             //e rel
             var step_lines = new List<StepperLine>();
             var first_p = frames[0].p_xyz;
+            var last_type_line = StepperLine.LineType.line;
             for (int i=1; i<frames.Length;i++)
             {
                 if(i < frames.Length-1)
@@ -2945,17 +2946,19 @@ namespace tcp_to_udp
                         step_lines.Add(line);
                         step_lines.Add(arc);
                         first_p = arc.frms[arc.frms.Length-1].p_xyz;
+                        last_type_line = StepperLine.LineType.arc;
                     }
                     else
                     {
-                        if (step_lines[step_lines.Count-1].stepType != StepperLine.LineType.arc)
+                        if (last_type_line != StepperLine.LineType.arc)
                         {
                             //Console.WriteLine("step_lines[step_lines.Count-1]");
                             first_p = frames[i - 1].p_xyz;
                         }
-                        Console.WriteLine(first_p);
+                        //Console.WriteLine(first_p);
                         var line = new StepperLine(first_p, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                         step_lines.Add(line);
+                        last_type_line = StepperLine.LineType.line;
                     }
                 }
                 else
@@ -2975,7 +2978,7 @@ namespace tcp_to_udp
             for(int i  = 1; i < frames_time.Length; i++)
             {
                 var dr = (frames_time[i].p_xyz - frames_time[i - 1].p_xyz).magnitude();
-                Console.WriteLine(frames_time[i].time_abs + " " + frames_time[i].vel + " "+ frames_time[i].e);
+                //Console.WriteLine(frames_time[i].time_abs + " " + frames_time[i].vel + " "+ frames_time[i].e);
                 //Console.WriteLine(i + " " + frames_time[i].vel + " " + frames_time[i].p_xyz.x);
             }
             //Console.WriteLine("_________");
@@ -3028,7 +3031,7 @@ namespace tcp_to_udp
                 //Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
                 var com = "num1 M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
-                if (i == 40) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
+                if (i == 10) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
                 coms.Add(com);
             }   
             //coms.Add("M588 A0 D0 C" + stepper_frames.Length);
