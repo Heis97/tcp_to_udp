@@ -193,6 +193,8 @@ namespace tcp_to_udp
             List<string> prog_orig_commands = new List<string>();
             List<string> prog_commands = new List<string>();
             List<string> jog_commands = new List<string>();
+
+            var bed_calib_ps = new StepperFrame[3];
             int cur_jog_line = 0;
             var prog_state = programm_state.STOP;
             int cur_prog_line = 0;
@@ -205,7 +207,8 @@ namespace tcp_to_udp
             var printer = new StepperPrinter();
 
             var max_print_r = printer.max_printing_radius();
-            Console.WriteLine(max_print_r);
+            Console.WriteLine("max_print_r: "+max_print_r);
+            printer.bed_calib_vec = printer.bed_calib_vec.normalize();
             printer.comp_delta_table(max_print_r);
 
             /*prog_orig_commands = new List<string>()
@@ -431,6 +434,44 @@ namespace tcp_to_udp
                                         cur_prog_line = 0;
                                         prog_state = programm_state.MOVE;
                                         Console.WriteLine("move");
+                                    }
+                                    else if (command.Contains("M616"))//remember_p 
+                                    {
+                                        var val = val_from_command(com_board);
+                                        if(val>=0 && val< bed_calib_ps.Length)
+                                        {
+                                            bed_calib_ps[val] = cur_frame;
+                                        }
+                                        
+                                        if(val<0)
+                                        {
+                                            printer.bed_calib_vec = new Point3d_GL(0, 0, 1);
+                                        }
+
+                                        if (val > bed_calib_ps.Length)
+                                        {
+
+                                            var p1 = bed_calib_ps[0].p_xyz;
+                                            var p2 = bed_calib_ps[1].p_xyz;
+                                            var p3 = bed_calib_ps[2].p_xyz;
+                                            var vecn = new Flat3d_GL(p1, p2, p3).n;
+                                            if (Math.Abs( vecn.z )> 0.5)
+                                            {
+                                                if(vecn.z<0)
+                                                {
+                                                    vecn.x *= -1;
+                                                    vecn.y *= -1;
+                                                    vecn.z *= -1;
+                                                }
+                                                printer.bed_calib_vec = new Point3d_GL(vecn.x, vecn.y, vecn.z);
+                                                Console.WriteLine("printer.bed_calib_vec: "+printer.bed_calib_vec);
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("vecn.z < 0.5");
+                                            }
+                                            
+                                        }
                                     }
                                 }
                                 
@@ -695,8 +736,9 @@ namespace tcp_to_udp
                             _TCPserver1.pushBuffer(mes);
                         }
 
-                        if (commands2.Count > 0)
+                        if (commands2.Count > 0 && !mes.Contains('M') && !mes.Contains('N'))
                         {
+                              
                             var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
                             //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                             var cur_num_ins = commands2[0].num - count_send2;
