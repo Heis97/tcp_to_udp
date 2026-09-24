@@ -213,8 +213,8 @@ namespace tcp_to_udp
 
             prog_orig_commands = new List<string>()
             {
-                "G1 X0 Y0 F600",
-                "G1 Z100 F600",
+                "G1 X0 Y0 F60",
+                "G1 Z100 F60",
             };
 
             var frames_xyz_test_2 = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
@@ -225,7 +225,7 @@ namespace tcp_to_udp
             //var p_abc_ik = printer.delta_ik(new Point3d_GL(0, 0, -174.72));
             //Console.WriteLine("ik: "+p_abc_ik);
             // printer.solve_fk(new long[] { 1000, 1000, 1000 });
-            double jog_xyz_vel =10;
+            double jog_xyz_vel = 10;
 
             int prev_delta_calib = 0;
             int prev_homing = 0;

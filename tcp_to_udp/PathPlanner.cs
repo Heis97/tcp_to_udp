@@ -1788,6 +1788,7 @@ namespace tcp_to_udp
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
+        //public double t_coef = 94616.18;
 
         public double R = 176.5;// 141; //150
         public double r = 47.5;//34;  //40
@@ -3064,7 +3065,7 @@ namespace tcp_to_udp
                 var com = "num1 M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
                 //Console.WriteLine(com);
                // Console.WriteLine((cur_pos[0] - prev_x)/(double)(cur_pos[4] - prev_time));
-                Console.WriteLine((cur_pos[0] - prev_x) );
+                Console.WriteLine((cur_pos[0] - prev_x) +" "+ (cur_pos[4] - prev_time)/ (double)(cur_pos[0] - prev_x) );
                 if (i == 40) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
                 prev_x = cur_pos[0];
                 prev_xd = stepper_frames[i].p_xyz.z;
