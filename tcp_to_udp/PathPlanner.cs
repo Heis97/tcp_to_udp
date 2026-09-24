@@ -1786,7 +1786,7 @@ namespace tcp_to_udp
 
         static double steps_xyz = 800;
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
-        public double e_steps = 800;
+        public double e_steps = 100;
         public double t_coef = 104616.18;
 
         public double R = 176.5;// 141; //150
@@ -3060,7 +3060,7 @@ namespace tcp_to_udp
                 Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
                 var com = "num1 M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
-                if (i == 10) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
+                if (i == 40) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
                 coms.Add(com);
             }
             Console.WriteLine("___________");
