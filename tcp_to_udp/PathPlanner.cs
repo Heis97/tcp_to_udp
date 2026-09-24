@@ -2353,7 +2353,7 @@ namespace tcp_to_udp
     public class StepperLine
     {
         static public double min_dist_printer = 0.2;
-        static public double min_dist = 0.01;
+        static public double min_dist = 0.001;
         static public double min_vel = 0.1;
 
         static public double printer_max_acs = 500;
@@ -3040,7 +3040,6 @@ namespace tcp_to_udp
                 {
                     orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
                 }
-
             }
 
             var stepper_frames = convert_frames_v3(
@@ -3052,6 +3051,9 @@ namespace tcp_to_udp
             coms.Add("num1 M588 F0");
             Console.WriteLine("___________");
             var prev_x = 0l;
+            var prev_xd = 0d;
+
+            var prev_time = 0d;
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 
@@ -3061,9 +3063,12 @@ namespace tcp_to_udp
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
                 var com = "num1 M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
                 //Console.WriteLine(com);
-                Console.WriteLine(cur_pos[0]- prev_x);
+               // Console.WriteLine((cur_pos[0] - prev_x)/(double)(cur_pos[4] - prev_time));
+                Console.WriteLine((cur_pos[0] - prev_x) );
                 if (i == 40) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
                 prev_x = cur_pos[0];
+                prev_xd = stepper_frames[i].p_xyz.z;
+                prev_time = cur_pos[4];
                 coms.Add(com);
             }
             Console.WriteLine("___________");
