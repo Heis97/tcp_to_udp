@@ -3051,16 +3051,19 @@ namespace tcp_to_udp
             var coms = new List<string>();
             coms.Add("num1 M588 F0");
             Console.WriteLine("___________");
-            
+            var prev_x = 0l;
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 
                 stepper_frames[i].p_xyz += offset.p_xyz;
                
-                Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
+                //Console.WriteLine(i + " " + stepper_frames[i].p_xyz.x + " " + stepper_frames[i].p_xyz.y + " " + stepper_frames[i].p_xyz.z + " " + stepper_frames[i].e + " " + stepper_frames[i].time_abs + " ");
                 var cur_pos = printer.solve_ik(stepper_frames[i]);
                 var com = "num1 M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
+                //Console.WriteLine(com);
+                Console.WriteLine(cur_pos[0]- prev_x);
                 if (i == 40) coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
+                prev_x = cur_pos[0];
                 coms.Add(com);
             }
             Console.WriteLine("___________");

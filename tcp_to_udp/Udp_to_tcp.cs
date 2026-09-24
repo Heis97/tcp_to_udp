@@ -149,7 +149,7 @@ namespace tcp_to_udp
             Console.WriteLine("1 " + commands1.Count);
 
             //Console.WriteLine("start con done");
-            for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
+            //for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
             while (true)
             {
                 string? input = Console.ReadLine();
