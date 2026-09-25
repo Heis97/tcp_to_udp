@@ -478,6 +478,7 @@ namespace tcp_to_udp
 
                 if (udp_client1.Available > 0)
                 {
+                    //Console.WriteLine("udp_client1.Available > 0: " );
                     var res = udp_client1.Receive(ref udp_addres_1);
 
                     long dtime = DateTime.Now.Ticks - last_time_1;
@@ -486,8 +487,8 @@ namespace tcp_to_udp
                     var cur_time_ms = DateTime.Now.Millisecond;
 
                     var dtime_ms = cur_time_ms - last_ms;
-                    //Console.WriteLine(dtime_ms);
-                    if(DateTime.Now.Millisecond > 500)
+                    
+                    if (DateTime.Now.Millisecond > 500)
                     {
                         if(!host_send)
                         {
@@ -512,6 +513,7 @@ namespace tcp_to_udp
 
                     //Console.WriteLine(DateTime.Now.Ticks);
                     var mes = Encoding.ASCII.GetString(res);
+                    //Console.WriteLine("res1: " + mes);
                     if (res != null)
                     {
                         if (_TCPserver1.connected)
@@ -714,9 +716,11 @@ namespace tcp_to_udp
                         initing2 = false;
                         Console.WriteLine("init 2 re:" + dtime + " " + (last_time_2 - start_time));
                     }
-                    //Console.WriteLine(DateTime.Now.Ticks);
-                    var mes = Encoding.ASCII.GetString(res) + "\n";
-                    if (res != null)
+                        //Console.WriteLine(DateTime.Now.Ticks);
+                        
+                        var mes = Encoding.ASCII.GetString(res) + "\n";
+                        //Console.WriteLine("res2: " + mes);
+                        if (res != null)
                     {
                         if (_TCPserver1.connected)
                         {

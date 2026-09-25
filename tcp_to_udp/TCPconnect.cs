@@ -232,7 +232,10 @@ namespace tcp_to_udp
                     len = buffer_in.ToString().Length;
                 }
             }
-
+            if (buffer_out.Length > 1000)
+            {
+                buffer_out = "";
+            }
             if (buffer_out.Length > 0)
             {
                 send_mes(buffer_out);
