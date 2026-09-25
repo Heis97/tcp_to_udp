@@ -227,7 +227,7 @@ namespace tcp_to_udp
             {
                 if (res.Length > 3)
                 {
-                    Console.WriteLine("res: " + res);
+                    //Console.WriteLine("res: " + res);
                     buffer_in.Append(res);
                     len = buffer_in.ToString().Length;
                 }
