@@ -1779,10 +1779,10 @@ namespace tcp_to_udp
     }
     public class StepperPrinter
     {
+        public double abs_pos_extr = 0;
 
         static double cos30 = 0.86602540378;
         static double sin30 = 0.5;
-
 
         static double steps_xyz = 80;//800
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
@@ -1822,6 +1822,9 @@ namespace tcp_to_udp
         public enum delta_calibr_ps_count { ps4,  ps18 };
 
         public Point3d_GL bed_calib_vec = new Point3d_GL(0.0049,0.0083,1);
+
+        public double koef_extrus = 1;
+        public double koef_vel = 1;
         //public Point3d_GL bed_calib_vec = new Point3d_GL(0.0049, 0.2, 1);
         public StepperPrinter()
         {
@@ -1859,7 +1862,7 @@ namespace tcp_to_udp
 
 
 
-
+            //Console.WriteLine("frame.e "+frame.e + " " + e_steps);
             var e_st = frame.e*e_steps;
             var time_counts = frame.time_abs*t_coef;
             var pos = new long[] { 0, 0, 0, 0, 0 };
@@ -2367,7 +2370,7 @@ namespace tcp_to_udp
     {
         static public double min_dist_printer = 0.2;
         static public double min_dist = 0.1;
-        static public double min_vel = 0.1;
+        static public double min_vel = 2.1;
 
         static public double printer_max_acs = 500;
         static public double printer_max_r = 0.3;
@@ -2609,7 +2612,7 @@ namespace tcp_to_udp
                     }
 
                     //frms[frms.Length - 1].vel = (frms[frms.Length - 2].vel + StepperLine.min_vel)/2;
-                    // Console.WriteLine(", r_cur:" + r_cur + ", t:" + t +", frms[i].vel :" + frms[i].vel);
+                     //Console.WriteLine(", r_cur:" + r_cur + ", t:" + t +", frms[i].vel :" + frms[i].vel);
                 }
 
             }
@@ -2666,7 +2669,7 @@ namespace tcp_to_udp
             this.body = body;
             kinematic = false;
         }
-
+        
         public string get_command(StepperPrinter printer)
         {
             if(!kinematic)
@@ -2677,7 +2680,16 @@ namespace tcp_to_udp
             else
             {
                 var cur_pos = printer.solve_ik(this);
-                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + cur_pos[3] + " W" + cur_pos[4];
+
+                printer.abs_pos_extr += printer.koef_extrus * e;
+               // Console.Write(cur_pos[3] + " " + cur_pos[3] * printer.koef_extrus+" ");
+               //cur_pos[3] =(long)( cur_pos[3] * printer.koef_extrus);
+               // Console.WriteLine(cur_pos[3]);
+                if (printer.koef_vel>0.01)
+                {
+                    cur_pos[4] = (long)(cur_pos[4] / printer.koef_vel);
+                }
+                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr *printer.e_steps) + " W" + cur_pos[4];
                 return com;
             }
 
@@ -2703,7 +2715,7 @@ namespace tcp_to_udp
                 var frame = frms[i].clone();
                 if (r>0)
                 {
-                    var e_width = Math.Abs( (e2) / r);
+                    var e_width = Math.Abs(  (e2) / r);
                     frame.e_width = e_width;
                 }
 
@@ -2777,6 +2789,7 @@ namespace tcp_to_udp
 
         public static StepperFrame[] comp_vel(StepperLine[] lines)
         {
+            if (lines.Length == 0) return null;
             lines[0].vel_begin = StepperLine.min_vel;
             for (int i=1; i<lines.Length; i++)
             {
@@ -2955,10 +2968,11 @@ namespace tcp_to_udp
             var cur_e = 0d;
             //Console.WriteLine("e_to_abs");
             for (int i = 0; i < frames_in.Length; i++)
-            {                
+            {
+                //Console.WriteLine(frames_in[i].e);
                 cur_e += frames_in[i].e;
                 frames_in[i].e = cur_e;
-                //Console.WriteLine(frames_in[i].e);
+                
             }
             return frames_in;
         }
@@ -3031,12 +3045,15 @@ namespace tcp_to_udp
                 }
             }
 
-            var frms = comp_vel(step_lines.ToArray());
+            var frms = comp_vel(step_lines.ToArray()); if (frms == null)  return null;
             //for (int i = 0; i < frms.Length; i++) Console.WriteLine(frms[i].e);
             //frms[0].e = frames_in[0].e;
-            //var frms_abs = e_to_abs(frms);
+            var frms_abs = e_to_abs(frms);
             //smooth extr , PA
             var filtr_ps = filtr_dist(frms.ToArray(), StepperLine.min_dist_printer * 0.9);
+
+            filtr_ps = e_to_rel(filtr_ps);
+
             var frames_time = frames_calc_time(filtr_ps.ToArray());
             //Console.WriteLine("frames_time_________");
             for(int i  = 1; i < frames_time.Length; i++)
@@ -3086,7 +3103,7 @@ namespace tcp_to_udp
             for (int i = 0; i < orig_g_code.Length; i++)
             {
                 orig_g_code[i].p_xyz += offset.p_xyz;
-                Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x+" "+ orig_g_code[i].p_xyz.y+" " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
+                //Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x+" "+ orig_g_code[i].p_xyz.y+" " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
                 if (i < orig_g_code.Length-1 && i<2)
                 {
                     off_z = printer.comp_off_bed(orig_g_code[i].p_xyz);
@@ -3102,13 +3119,15 @@ namespace tcp_to_udp
                 StepperLine.printer_max_acs,        //acs  mm/s^2
                 StepperLine.printer_max_r);      //max r  mm
 
+            if (stepper_frames == null) return null;
             var coms = new List<StepperFrame>();
 
-            coms.Add(new StepperFrame(1, 588, "F0"));//   "num1 M588 F0");
-
-            for (int i = 0; i < stepper_frames.Length; i++)
+            coms.Add(new StepperFrame(1, 588, "F0"));//   ring_buf_all_counter_write
+            coms.Add(new StepperFrame(1, 587, "I7 C0"));//  e = 0
+            printer.abs_pos_extr = 0;
+            for (int i = 1; i < stepper_frames.Length; i++)
             {                
-                if (i == 30) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length)); //coms.Add("num1 M588 A1 D0 C" + stepper_frames.Length);
+                if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 var l = stepper_frames[i].get_command(printer);
                 Console.WriteLine("time: "+ l);
                 coms.Add(stepper_frames[i]);
