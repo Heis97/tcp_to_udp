@@ -1788,22 +1788,27 @@ namespace tcp_to_udp
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
-        //public double t_coef = 94616.18;
-        static double steps_xyz = 800;//800
+
+
+        /*static double steps_xyz = 800;//800
         public double R = 176.5;// 141; //150
         public double r = 47.5;//34;  //40
         public double l = 320;//218;  //215
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
-        public double b_off = 0;// 0.24; //0
+        public double b_off = 0;// 0.24; //0*/
 
-        /* static double steps_xyz = 80
+        static double steps_xyz = 80;
          public double R =  141; //150
          public double r = 34;  //40
          public double l = 218;  //215
          public double printing_r = 100;
          public double a_off =  0.3; //0
-         public double b_off =  0.24; //0*/
+         public double b_off =  0.24; //0
+
+
+        public bool all_motors_stop1 = false;
+        public bool all_motors_stop2 = false;
 
         Point3d_GL p_a_cent_off = new Point3d_GL();
         Point3d_GL p_b_cent_off = new Point3d_GL();
@@ -2645,6 +2650,8 @@ namespace tcp_to_udp
         public string body = "";
 
         public bool kinematic = true;
+        public bool movement = true;
+        public int len = -1;
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
             frame = _frame;
@@ -2661,36 +2668,42 @@ namespace tcp_to_udp
             plate_num = 1;
             com_num = 588;
             kinematic = true;
+            movement = true;
         }
 
-        public StepperFrame(int plate_num, int com_num, string body)
+        public StepperFrame(int plate_num, int com_num, string body, bool kinematic)
         {
             this.plate_num = plate_num;
             this.com_num = com_num;
             this.body = body;
-            kinematic = false;
+            this.kinematic = kinematic;
+            movement = false;
         }
         
         public string get_command(StepperPrinter printer)
         {
-            if(!kinematic)
+            if(kinematic && movement)
             {
-                var com = "num" + plate_num + " M" + com_num + " " + body;
-                return com;
-            }
-            else
-            {
+
                 var cur_pos = printer.solve_ik(this);
 
                 printer.abs_pos_extr += printer.koef_extrus * e;
-               // Console.Write(cur_pos[3] + " " + cur_pos[3] * printer.koef_extrus+" ");
-               //cur_pos[3] =(long)( cur_pos[3] * printer.koef_extrus);
-               // Console.WriteLine(cur_pos[3]);
-                if (printer.koef_vel>0.01)
+                // Console.Write(cur_pos[3] + " " + cur_pos[3] * printer.koef_extrus+" ");
+                //cur_pos[3] =(long)( cur_pos[3] * printer.koef_extrus);
+                // Console.WriteLine(cur_pos[3]);
+                if (printer.koef_vel > 0.01)
                 {
                     cur_pos[4] = (long)(cur_pos[4] / printer.koef_vel);
                 }
-                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr *printer.e_steps) + " W" + cur_pos[4];
+                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr * printer.e_steps) + " W" + cur_pos[4];
+                return com;
+
+
+                
+            }
+            else
+            {
+                var com = "num" + plate_num + " M" + com_num + " " + body;
                 return com;
             }
 
@@ -3123,18 +3136,45 @@ namespace tcp_to_udp
             if (stepper_frames == null) return null;
             var coms = new List<StepperFrame>();
 
-            coms.Add(new StepperFrame(1, 588, "F0"));//   ring_buf_all_counter_write
-            coms.Add(new StepperFrame(1, 587, "I7 C0"));//  e = 0
+            //coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
+            //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             printer.abs_pos_extr = 0;
-            for (int i = 1; i < stepper_frames.Length; i++)
+            for (int i = 0; i < stepper_frames.Length; i++)
             {                
-                if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
-                var l = stepper_frames[i].get_command(printer);
-                Console.WriteLine("time: "+ l);
+                //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
+                //var l = stepper_frames[i].get_command(printer);
+                //Console.WriteLine("time: "+ l);
                 coms.Add(stepper_frames[i]);
             }
             return coms.ToArray();
         }
+
+        public static StepperFrame[] prepare_g_code_to_load(StepperFrame[] stepper_frames)
+        {
+            var coms = new List<StepperFrame>();
+
+            coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
+            coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
+            int i_start = Math.Min(10, stepper_frames.Length - 1);
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                coms.Add(stepper_frames[i]);
+
+                if (i == i_start)
+                {
+                    var fr_len = new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length, true);
+                    fr_len.len = stepper_frames.Length;
+                    coms.Add(fr_len); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
+                }
+
+                //var l = stepper_frames[i].get_command(printer);
+                //Console.WriteLine("time: "+ l);
+                //var fr_stop = new StepperFrame(1, 588, "A0 D0 C0", true);
+                //coms.Add(fr_stop);
+            }
+            return coms.ToArray();
+        }
+
 
         public static StepperFrame[] convert_g_code_to_stepperframes(string[] orig_g_code, StepperPrinter printer)
         {

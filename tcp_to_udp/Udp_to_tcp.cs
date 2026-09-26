@@ -180,7 +180,7 @@ namespace tcp_to_udp
         }
 
 
-        enum programm_state { MOVE, STOP, PAUSE, JOG }
+        enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY }
         void recieve_udp_all()
         {
             int count_ins = 0;
@@ -191,11 +191,14 @@ namespace tcp_to_udp
 
 
             List<string> prog_orig_commands = new List<string>();
+            List<StepperFrame> alternately_commands = new List<StepperFrame>();
             List<StepperFrame> prog_commands = new List<StepperFrame>();
             List<StepperFrame> jog_commands = new List<StepperFrame>();
 
             var bed_calib_ps = new StepperFrame[3];
             int cur_jog_line = 0;
+            int cur_alternately_line = 0;
+            int cur_alternately_line_internal = 0;
             var prog_state = programm_state.STOP;
             int cur_prog_line = 0;
             int pause_prog_line = 0;
@@ -248,8 +251,8 @@ namespace tcp_to_udp
             //Console.WriteLine("ik: "+p_abc_ik);
             // printer.solve_fk(new long[] { 1000, 1000, 1000 });
             double jog_xyz_vel = 10;
-
-
+            var ring_en = 0;
+            var prog_done = 0;
 
             int prev_delta_calib = 0;
             int prev_homing = 0;
@@ -260,6 +263,8 @@ namespace tcp_to_udp
             Console.WriteLine("2 "+commands1.Count);
             int max_count_cur_prog = 0;
             double jog_len = 100;
+            int stop_len = 21;
+            bool stop_len_setted = false;
             while (udp_client1 != null)
             {
                 // Console.WriteLine("recive udp");
@@ -368,8 +373,11 @@ namespace tcp_to_udp
                                             {
                                                 frames_xyz_list.Insert(0, new StepperFrame(cur_frame.p_xyz - offset_frame.p_xyz, 0, jog_xyz_vel));
                                                 prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(), printer, offset_frame)?.ToList();
+
+                                               
                                                 if (prog_commands != null)
                                                 {
+                                                    prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
                                                     cur_prog_line = 0;
                                                     prog_state = programm_state.MOVE;
                                                 }
@@ -417,6 +425,7 @@ namespace tcp_to_udp
                                             jog_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
                                             if(jog_commands!=null)
                                             {
+                                                jog_commands = StepperFrame.prepare_g_code_to_load(jog_commands.ToArray()).ToList();
                                                 prog_state = programm_state.JOG;
                                             }
                                             
@@ -456,6 +465,7 @@ namespace tcp_to_udp
                                         prog_commands = StepperFrame.convert_g_code(frames_xyz_list, printer, offset_frame).ToList();
                                         if(prog_commands!=null)
                                         {
+                                            prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
                                             cur_prog_line = 0;
                                             prog_state = programm_state.MOVE;
                                             Console.WriteLine("move");
@@ -511,6 +521,45 @@ namespace tcp_to_udp
                                     {
                                         var val = val_from_command(com_board);
                                         printer.koef_vel = val / 100d;
+                                    }
+
+
+                                    else if (command.Contains("M619"))//set jog vel
+                                    {
+                                        //var val = val_from_command(com_board);
+                                        var val = val_from_command(com_board);
+                                        var jog_orig = new List<StepperFrame>();
+                                        var fr_cur = cur_frame.clone();
+                                        fr_cur.vel = jog_xyz_vel;
+                                        jog_orig.Add(fr_cur);
+                                        var fr_jog = fr_cur.clone();
+                                        fr_jog.p_xyz = fr_jog.p_xyz.add_mask(0, 10);
+                                        jog_orig.Add(fr_jog);
+      
+                                        alternately_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
+                                        alternately_commands = StepperFrame.prepare_g_code_to_load(alternately_commands.ToArray()).ToList();
+
+                                        jog_orig = new List<StepperFrame>();
+                                        fr_cur = fr_jog.clone();
+                                        fr_cur.vel = jog_xyz_vel;
+                                        jog_orig.Add(fr_cur);
+                                        fr_jog = fr_cur.clone();
+                                        fr_jog.p_xyz = fr_jog.p_xyz.add_mask(2, 10);
+                                        jog_orig.Add(fr_jog);
+                                        
+
+                                        var more_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
+
+                                        more_commands = StepperFrame.prepare_g_code_to_load(more_commands.ToArray()).ToList();
+
+                                        alternately_commands.AddRange(more_commands);
+                                        //for(int i=0; i < alternately_commands.Count;i++) Console.WriteLine(alternately_commands[i].p_xyz);
+
+
+                                        
+                                        cur_alternately_line = 0;
+                                        cur_alternately_line_internal = 0;
+                                        prog_state = programm_state.ALTERNATELY;
                                     }
                                 }
                                 
@@ -585,7 +634,7 @@ namespace tcp_to_udp
                         {
                             try
                             {
-
+                                var ring_counter = (long)Convert.ToInt32(vars_from_mes[2]);
                                 var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
 
                                 //cur position-----------------------------------------------------------------
@@ -596,12 +645,19 @@ namespace tcp_to_udp
                                     {
                                         cur_poses[i] = Convert.ToInt64(vars_from_mes[4 + i]);
                                     }
-
+                                   
 
                                     cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[7] };
 
                                     cur_frame = printer.solve_fk(cur_pos);
                                     /**/
+                                }
+
+                                
+                                if(cur_send == 0)
+                                {
+                                    ring_en = Convert.ToInt32(vars_from_mes[6]);
+                                    prog_done = Convert.ToInt32(vars_from_mes[9]);
                                 }
                                 var cur_prog_line_board = Convert.ToInt64(vars_from_mes[2]);
 
@@ -628,8 +684,98 @@ namespace tcp_to_udp
                                         cur_jog_line++;
                                     }
                                 }
+                                
+                                //alternately work-----------------------------------------------------------------
+                                if (prog_state == programm_state.ALTERNATELY)
+                                {
+                                    /*bool can_go = true;
+                                    if (alternately_commands[cur_alternately_line].kinematic)
+                                    {
+
+                                        if(cur_alternately_line>0)
+                                        if (!alternately_commands[cur_alternately_line-1].kinematic)
+                                        {
+                                            //wait all stop
+                                            can_go = false;
+                                            if(printer.all_motors_stop2)
+                                            {
+                                                can_go = true;
+                                            }
+                                        }
+
+                                        if (can_go) 
+                                        {
+                                            if(alternately_commands[cur_alternately_line].kinematic)
+                                            {
+                                                if(alternately_commands[cur_alternately_line].len>0)
+                                                {
+                                                    stop_len = alternately_commands[cur_alternately_line].len;
+                                                }
+                                                if(cur_alternately_line - cur_prog_line_board < 40 && cur_alternately_line< stop_len)
+                                                {
+                                                    var com = alternately_commands[cur_alternately_line].get_command(printer);
+                                                    _TCPserver1.pushBuffer_in(com + "\n");
+
+                                                    cur_alternately_line++;
+
+                                                    if (cur_alternately_line >= alternately_commands.Count) prog_state = programm_state.STOP;
+                                                }
+                                                if(cur_alternately_line == stop_len && ring_counter==0)
+                                                {
+                                                    //wait ring buf
+                                                    cur_alternately_line = 0;
+                                                    stop_len = 21;
+                                                }
+                                                
+                                            }
+                                            else
+
+                                            {
+                                                var com = alternately_commands[cur_alternately_line].get_command(printer);
+                                                _TCPserver1.pushBuffer_in(com + "\n");
+
+                                                cur_alternately_line++;
+                                                if (cur_alternately_line >= alternately_commands.Count) prog_state = programm_state.STOP;
+
+                                            }
+                                            
+                                        }
+                                        
+                                    }*/
+
+                                    if (cur_alternately_line_internal - cur_prog_line_board < 40 && cur_alternately_line_internal < stop_len)
+                                    {
+                                        Console.WriteLine(cur_prog_line_board+" "+  cur_alternately_line_internal + " " + stop_len + " " + cur_alternately_line + " " + alternately_commands.Count);
+                                        if (alternately_commands[cur_alternately_line].len>0 && !stop_len_setted)
+                                        {
+                                            stop_len = alternately_commands[cur_alternately_line].len;
+                                            Console.WriteLine(" stop_len : " + stop_len);
+                                            stop_len_setted = true; 
+                                        }
+
+
+                                        var com = alternately_commands[cur_alternately_line].get_command(printer);
+                                        _TCPserver1.pushBuffer_in(com + "\n");
+                                        if(alternately_commands[cur_alternately_line].movement) cur_alternately_line_internal++;
+
+                                        cur_alternately_line++;  if (cur_alternately_line >= alternately_commands.Count) { prog_state = programm_state.STOP;  Console.WriteLine("stop alt"); }
+
+                                      
+                                    }
+
+                                    if (cur_alternately_line> stop_len-2 && prog_done == 1 )
+                                    {
+                                        //wait ring buf
+                                        cur_alternately_line_internal = 0;
+                                        stop_len = 21;
+                                        stop_len_setted = false;
+                                        Console.WriteLine("cur_alternately_line_internal = 0;");
+                                    }
+
+                                }
                                 //delta calib_handler-----------------------------------------------------------------
-                                var cur_delta_calib = Convert.ToInt32(vars_from_mes[8]);
+
+                                var cur_delta_calib = Convert.ToInt32(vars_from_mes[8]);//!!!!!!!cur_send ==0
                                 var cur_ring_buf_en = Convert.ToInt32(vars_from_mes[9]);
                                 var cur_homing = Convert.ToInt32(vars_from_mes[10]);
                                 if (printer.delta_calibr_en)
@@ -674,6 +820,7 @@ namespace tcp_to_udp
                                         prog_commands = StepperFrame.convert_g_code(frames_xyz_test, printer, offset_frame).ToList();
                                         if(prog_commands!=null)
                                         {
+                                            prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
                                             max_count_cur_prog = prog_commands.Count;
                                             cur_prog_line = 0;
                                             prog_state = programm_state.MOVE;
@@ -782,17 +929,49 @@ namespace tcp_to_udp
                         
                         var mes = Encoding.ASCII.GetString(res) + "\n";
                         //Console.WriteLine("res2: " + mes);
+
                         if (res != null)
-                    {
-                        if (_TCPserver1.connected)
                         {
-                            _TCPserver1.pushBuffer(mes);
-                        }
+                            var vars_from_mes = mes.Split(' ');
+                            var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
+
+                            //Console.WriteLine(vars_from_mes.Length);
+                            if (vars_from_mes.Length >= 9)
+                            {
+                                try
+                                {
+
+                                    var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
+
+                                    if (cur_send == 3)
+                                    {
+                                        var cur_steps = new long[8];
+                                        var all_steps = 0l;
+                                        for (int i = 0; i < 8; i++)
+                                        {
+                                            cur_steps[i] = Convert.ToInt64(vars_from_mes[4 + i]);
+                                            all_steps += cur_steps[i];
+                                        }
+
+                                        if (all_steps == 0) printer.all_motors_stop2 = true;
+                                        else printer.all_motors_stop2 = false;
+
+                                    }
+                                }
+                                catch
+                                {
+
+                                }
+                            }
+                            if (_TCPserver1.connected)
+                            {
+                                _TCPserver1.pushBuffer(mes);
+                            }
 
                         if (commands2.Count > 0 && !mes.Contains('M') && !mes.Contains('N'))
                         {
                               
-                            var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
+                            //var cur_num_board = (long)Convert.ToInt32(mes.Split(' ')[1]);
                             //Console.WriteLine("send1 com: " + cur_num_board + "/" + count_send1 + " " + coms1[0]);
                             var cur_num_ins = commands2[0].num - count_send2;
                             Console.WriteLine("send2 com pre: " + cur_num_board + "/" + cur_num_ins + " " + count_send2 + " " + commands2[0].com);
