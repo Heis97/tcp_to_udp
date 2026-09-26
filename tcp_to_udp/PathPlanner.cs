@@ -1784,25 +1784,26 @@ namespace tcp_to_udp
         static double cos30 = 0.86602540378;
         static double sin30 = 0.5;
 
-        static double steps_xyz = 80;//800
+        
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
         //public double t_coef = 94616.18;
-
-        /*public double R = 176.5;// 141; //150
+        static double steps_xyz = 800;//800
+        public double R = 176.5;// 141; //150
         public double r = 47.5;//34;  //40
         public double l = 320;//218;  //215
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
-        public double b_off = 0;// 0.24; //0*/
+        public double b_off = 0;// 0.24; //0
 
-        public double R =  141; //150
-        public double r = 34;  //40
-        public double l = 218;  //215
-        public double printing_r = 100;
-        public double a_off =  0.3; //0
-        public double b_off =  0.24; //0
+        /* static double steps_xyz = 80
+         public double R =  141; //150
+         public double r = 34;  //40
+         public double l = 218;  //215
+         public double printing_r = 100;
+         public double a_off =  0.3; //0
+         public double b_off =  0.24; //0*/
 
         Point3d_GL p_a_cent_off = new Point3d_GL();
         Point3d_GL p_b_cent_off = new Point3d_GL();
