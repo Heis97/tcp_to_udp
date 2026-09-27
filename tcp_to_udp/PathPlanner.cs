@@ -1808,7 +1808,7 @@ namespace tcp_to_udp
 
 
         public bool all_motors_stop1 = false;
-        public bool all_motors_stop2 = false;
+        public bool all_motors_stop2 = true;
 
         Point3d_GL p_a_cent_off = new Point3d_GL();
         Point3d_GL p_b_cent_off = new Point3d_GL();
@@ -2651,6 +2651,7 @@ namespace tcp_to_udp
 
         public bool kinematic = true;
         public bool movement = true;
+        public bool wait_this_command = true;
         public int len = -1;
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
@@ -2671,13 +2672,14 @@ namespace tcp_to_udp
             movement = true;
         }
 
-        public StepperFrame(int plate_num, int com_num, string body, bool kinematic)
+        public StepperFrame(int plate_num, int com_num, string body, bool kinematic,bool wait = true)
         {
             this.plate_num = plate_num;
             this.com_num = com_num;
             this.body = body;
             this.kinematic = kinematic;
             movement = false;
+            wait_this_command = wait;
         }
         
         public string get_command(StepperPrinter printer)
@@ -3175,7 +3177,40 @@ namespace tcp_to_udp
             return coms.ToArray();
         }
 
+        public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperPrinter printer, StepperFrame offset)
+        {
+            var frames_out = new List<StepperFrame>();
+            var frames_kinematic = new List<StepperFrame>();
+            for (int i=0; i<stepper_frames.Length; i++)
+            {
+                if (stepper_frames[i].kinematic)
+                {
+                    frames_kinematic.Add(stepper_frames[i]);
+                }
+                else
+                {
+                    if(frames_kinematic.Count>0)
+                    {
+                        var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(), printer, offset).ToList();
+                        var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray());
+                        frames_kinematic = new List<StepperFrame>();
+                        frames_out.AddRange(frames_kinematic_prep);
+                    }
+                    frames_out.Add(stepper_frames[i]);
 
+                }
+
+            }
+
+            if (frames_kinematic.Count > 0)
+            {
+                var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(), printer, offset).ToList();
+                var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray());
+                frames_kinematic = new List<StepperFrame>();
+                frames_out.AddRange(frames_kinematic_prep);
+            }
+            return frames_out.ToArray();
+        }
         public static StepperFrame[] convert_g_code_to_stepperframes(string[] orig_g_code, StepperPrinter printer)
         {
             var coms = new List<StepperFrame>();
@@ -3208,6 +3243,9 @@ namespace tcp_to_udp
 
                     coms.Add(new StepperFrame(p_cur.Clone(),e_cur,vel_cur));
                 }
+
+
+
             }
 
             return coms.ToArray();
