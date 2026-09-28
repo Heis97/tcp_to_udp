@@ -1796,15 +1796,15 @@ namespace tcp_to_udp
         public double l = 320;//218;  //215
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
-        public double b_off = 0;// 0.24; //0
+        public double b_off = 0;// 0.24; //0  
 
         /*static double steps_xyz = 80;
-         public double R =  141; //150
-         public double r = 34;  //40
-         public double l = 218;  //215
-         public double printing_r = 100;
-         public double a_off =  0.3; //0
-         public double b_off =  0.24; //0*/
+        public double R =  141; //150
+        public double r = 34;  //40
+        public double l = 218;  //215
+        public double printing_r = 100;
+        public double a_off =  0.3; //0
+        public double b_off =  0.24; //0*/
 
 
         public bool all_motors_stop1 = false;
@@ -2499,6 +2499,7 @@ namespace tcp_to_udp
 
             ps.Add(p2);
 
+            
 
             return ps.ToArray();
         }
@@ -2956,13 +2957,20 @@ namespace tcp_to_udp
         {
             var ps_filtr = new List<StepperFrame>();
             ps_filtr.Add(frames_in[0]);
+            bool last_added = false;
             for(int i=1; i<frames_in.Length; i++)
             {
                 var dist_cur = dist_betw_fr(ps_filtr[ps_filtr.Count-1], frames_in[i]);
                 if(dist_cur > min_dist)
                 {
                     ps_filtr.Add(frames_in[i]);
+                    if(i == frames_in.Length - 1) last_added = true;
                 }
+            }
+            if(!last_added)
+            {
+                ps_filtr.RemoveAt(ps_filtr.Count-1);
+                ps_filtr.Add(frames_in[frames_in.Length - 1]);
             }
 
             return ps_filtr.ToArray();
@@ -3142,10 +3150,11 @@ namespace tcp_to_udp
             //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             printer.abs_pos_extr = 0;
             for (int i = 0; i < stepper_frames.Length; i++)
-            {                
+            {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 //var l = stepper_frames[i].get_command(printer);
                 //Console.WriteLine("time: "+ l);
+                //Console.WriteLine("p: " + stepper_frames[i].p_xyz);
                 coms.Add(stepper_frames[i]);
             }
             return coms.ToArray();

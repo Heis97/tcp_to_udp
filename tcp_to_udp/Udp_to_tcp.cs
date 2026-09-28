@@ -153,7 +153,7 @@ namespace tcp_to_udp
             Console.WriteLine("1 " + commands1.Count);
 
             //Console.WriteLine("start con done");
-            for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
+            //for (int i = 0; i < 3; i++) cams_thr[i] = start_cam(i, ports_cam[i]);
             while (true)
             {
                 string? input = Console.ReadLine();
@@ -548,9 +548,9 @@ namespace tcp_to_udp
                                         Console.WriteLine("settins_string.take_left_manip_rot[0] = " + settins_string.take_left_manip_rot[0]);
                                         var vel_change = 10;
                                         var prog_cur = new List<StepperFrame>();
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 H", false));
+                                        //prog_cur.Add(new StepperFrame(2, 587, "I3 H", false));
                                         prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[0] + " L", false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_rot[0] + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[0] + " L", false));
                                         prog_cur.Add(cur_frame.clone());
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
                                         prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_rot[1] + " L", false));
@@ -753,6 +753,8 @@ namespace tcp_to_udp
                                             {
                                                 stop_len = alternately_commands[cur_alternately_line].len;
                                             }
+
+                                            Console.WriteLine("send: "+alternately_commands[cur_alternately_line].p_xyz);
                                             var com = alternately_commands[cur_alternately_line].get_command(printer);
                                             _TCPserver1.pushBuffer_in(com + "\n");
                                             if (alternately_commands[cur_alternately_line].movement) cur_alternately_line_internal++;
