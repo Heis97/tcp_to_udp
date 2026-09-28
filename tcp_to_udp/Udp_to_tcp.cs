@@ -541,23 +541,39 @@ namespace tcp_to_udp
                                     }
 
 
-                                    else if (command.Contains("M619"))//set take change
+                                    else if (command.Contains("M619"))//set take change left
                                     {
-                                        //i3 rot, i4 vert
-
-                                        Console.WriteLine("settins_string.take_left_manip_rot[0] = " + settins_string.take_left_manip_rot[0]);
-                                        var vel_change = 10;
+                                        //i3 vert, i4 rot, 
+;
+                                        var vel_change = 5;
                                         var prog_cur = new List<StepperFrame>();
-                                        //prog_cur.Add(new StepperFrame(2, 587, "I3 H", false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[0] + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 H", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[0] + " L", false,false));
                                         prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[0] + " L", false));
                                         prog_cur.Add(cur_frame.clone());
+                                        
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_rot[1] + " L", false));
-                                        //prog_cur.Add(cur_frame.clone());
+                                        
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[1] + " L", false));
+
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[1], settins_string.take_left_manip_y[1], settins_string.take_left_manip_z[1]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_rot[2] + " L", false));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[2] + " L", false));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[3], settins_string.take_left_manip_y[3], settins_string.take_left_manip_z[3]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
+
+
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[3] + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[1] + " L", false));
+
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[5], settins_string.take_left_manip_y[5], settins_string.take_left_manip_z[5]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[6], settins_string.take_left_manip_y[6], settins_string.take_left_manip_z[6]), 0, vel_change));
+
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P100 L", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P100 L", false));
 
 
                                         alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
@@ -569,9 +585,46 @@ namespace tcp_to_udp
                                         printer.all_motors_stop2 = true;
                                     }
 
-                                    else if (command.Contains("M620"))//set give change
+                                    else if (command.Contains("M620"))//set give change left
                                     {
+                                        //i3 vert, i4 rot, 
+                                        ;
+                                        var vel_change = 10;
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(cur_frame.clone());
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[6], settins_string.take_left_manip_y[6], settins_string.take_left_manip_z[6]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 H", false));
 
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[3] + " L", false,false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[1] + " L", false));
+
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[6], settins_string.take_left_manip_y[6], settins_string.take_left_manip_z[6]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[5], settins_string.take_left_manip_y[5], settins_string.take_left_manip_z[5]), 0, vel_change));
+
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[0] + " L", false));
+
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[5], settins_string.take_left_manip_y[5], settins_string.take_left_manip_z[5]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[2] + " L", false));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[3], settins_string.take_left_manip_y[3], settins_string.take_left_manip_z[3]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[1] + " L", false));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[1], settins_string.take_left_manip_y[1], settins_string.take_left_manip_z[1]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P100", false));
+                                        //----------------------------------------------------------
+
+
+
+                                        alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
+                                        cur_alternately_line = 0;
+                                        cur_alternately_line_internal = 0;
+                                        prog_state = programm_state.ALTERNATELY;
+                                        program_done_flag = false;
+                                        printer.all_motors_stop1 = true;
+                                        printer.all_motors_stop2 = true;
                                     }
 
 
@@ -580,6 +633,15 @@ namespace tcp_to_udp
                                         prog_state = programm_state.STOP;
                                         _TCPserver1.pushBuffer_in("num1 M589 S" + "\n");
                                         _TCPserver1.pushBuffer_in("num2 M589 S" + "\n");
+                                    }
+
+                                    else if (command.Contains("M630"))//home manipulators
+                                    {
+                                        prog_state = programm_state.STOP;
+                                        _TCPserver1.pushBuffer_in("num2 M587 I3 H" + "\n");
+                                        _TCPserver1.pushBuffer_in("num2 M587 I4 H" + "\n");
+                                        _TCPserver1.pushBuffer_in("num2 M587 I5 H" + "\n");
+                                        _TCPserver1.pushBuffer_in("num2 M587 I6 H" + "\n");
                                     }
                                 }
                                 
@@ -1071,7 +1133,14 @@ namespace tcp_to_udp
 
             settins_string.give_left_manip_x = new double[ps_take];
             settins_string.give_left_manip_y = new double[ps_take];
-            settins_string.give_left_manip_z = new double[ps_take];*/
+            settins_string.give_left_manip_z = new double[ps_take];
+
+            settins_string.take_left_manip_rot = new int[ps_take];
+            settins_string.take_left_manip_vert = new int[ps_take];
+
+            settins_string.take_left_manip_x = new double[ps_take];
+            settins_string.take_left_manip_y = new double[ps_take];
+            settins_string.take_left_manip_z = new double[ps_take];*/
 
             for (int i = 0; i<settins_string.motors_count1;i++)
             {
