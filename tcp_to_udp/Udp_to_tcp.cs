@@ -623,10 +623,20 @@ namespace tcp_to_udp
                                     else if (command.Contains("M630"))//home manipulators
                                     {
                                         prog_state = programm_state.STOP;
-                                        _TCPserver1.pushBuffer_in("num2 M587 I3 H" + "\n");
-                                        _TCPserver1.pushBuffer_in("num2 M587 I4 H" + "\n");
-                                        _TCPserver1.pushBuffer_in("num2 M587 I5 H" + "\n");
-                                        _TCPserver1.pushBuffer_in("num2 M587 I6 H" + "\n");
+
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 S100 L", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 S100 L", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I5 S100 L", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I6 S100 L", false));
+
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 H", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 H", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I5 H", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I6 H", false));
+
+                                        start_alternate_prog(prog_cur.ToArray());
+
                                     }
                                 }
                                 
@@ -1112,14 +1122,14 @@ namespace tcp_to_udp
 
 
             // settins_string.soft_max_pos2 = new int[2];
-            int ps_take = 10;
+            /*int ps_take = 10;
 
             settins_string.take_right_manip_rot = new int[ps_take];
             settins_string.take_right_manip_vert = new int[ps_take];
 
             settins_string.take_right_manip_x = new double[ps_take];
             settins_string.take_right_manip_y = new double[ps_take];
-            settins_string.take_right_manip_z = new double[ps_take];
+            settins_string.take_right_manip_z = new double[ps_take];*/
 
             for (int i = 0; i<settins_string.motors_count1;i++)
             {
