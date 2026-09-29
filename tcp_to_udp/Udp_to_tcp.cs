@@ -613,7 +613,7 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[1], settins_string.take_left_manip_y[1], settins_string.take_left_manip_z[1]), 0, vel_change));
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P100", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P100 L", false));
                                         //----------------------------------------------------------
 
 
