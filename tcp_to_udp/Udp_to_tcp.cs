@@ -86,7 +86,25 @@ namespace tcp_to_udp
 
         SettingsString settins_string = null;
 
+        List<string> prog_orig_commands = new List<string>();
+        List<StepperFrame> alternately_commands = new List<StepperFrame>();
+        List<StepperFrame> prog_commands = new List<StepperFrame>();
+        List<StepperFrame> jog_commands = new List<StepperFrame>();
 
+        StepperFrame[] bed_calib_ps = new StepperFrame[3];
+        int cur_jog_line = 0;
+        int cur_alternately_line = 0;
+        int cur_alternately_line_internal = 0;
+        programm_state prog_state = programm_state.STOP;
+        int cur_prog_line = 0;
+        int pause_prog_line = 0;
+
+
+        long[] cur_pos = new long[] { 0, 0, 0, 0 };
+        long[] prev_pos = new long[] { 0, 0, 0, 0 };
+        StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+        StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+        StepperPrinter printer = new StepperPrinter();
 
         public void connect_udp_all()
         {
@@ -183,8 +201,44 @@ namespace tcp_to_udp
             CvInvoke.WaitKey();
         }
 
+        double jog_xyz_vel = 10;
+        int ring_en = 0;
 
+        int prog_done = 0;
+        int prog_done_prev = 0;
+        bool program_done_flag = false;
+
+        long all_steps1 = 0l;
+        long all_steps_prev1 = 0l;
+        int all_steps_time_counter1 = 0;
+
+        long all_steps2 = 0l;
+        long all_steps_prev2 = 0l;
+        int all_steps_time_counter2 = 0;
+
+
+        int prev_delta_calib = 0;
+        int prev_homing = 0;
+        bool delta_calib_go_next_p = false;
+        bool delta_calib_nozzle_up = false;
+
+
+        int max_count_cur_prog = 0;
+        double jog_len = 100;
+        int stop_len = 21;
+        bool stop_len_setted = false;
         enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY }
+
+        void start_alternate_prog(StepperFrame[] prog_cur)
+        {
+            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur, printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
+            cur_alternately_line = 0;
+            cur_alternately_line_internal = 0;
+            prog_state = programm_state.ALTERNATELY;
+            program_done_flag = false;
+            printer.all_motors_stop1 = true;
+            printer.all_motors_stop2 = true;
+        }
         void recieve_udp_all()
         {
             int count_ins = 0;
@@ -194,25 +248,7 @@ namespace tcp_to_udp
             bool err_con_tcp = false;
 
 
-            List<string> prog_orig_commands = new List<string>();
-            List<StepperFrame> alternately_commands = new List<StepperFrame>();
-            List<StepperFrame> prog_commands = new List<StepperFrame>();
-            List<StepperFrame> jog_commands = new List<StepperFrame>();
-
-            var bed_calib_ps = new StepperFrame[3];
-            int cur_jog_line = 0;
-            int cur_alternately_line = 0;
-            int cur_alternately_line_internal = 0;
-            var prog_state = programm_state.STOP;
-            int cur_prog_line = 0;
-            int pause_prog_line = 0;
-
-
-            long[] cur_pos = new long[]{0, 0, 0, 0};
-            long[] prev_pos = new long[] { 0, 0, 0, 0 };
-            StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-            StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-            var printer = new StepperPrinter();
+            
 
             var max_print_r = printer.max_printing_radius();
             Console.WriteLine("max_print_r: "+max_print_r);
@@ -255,33 +291,7 @@ namespace tcp_to_udp
             //var p_abc_ik = printer.delta_ik(new Point3d_GL(0, 0, -174.72));
             //Console.WriteLine("ik: "+p_abc_ik);
             // printer.solve_fk(new long[] { 1000, 1000, 1000 });
-            double jog_xyz_vel = 10;
-            var ring_en = 0;
-
-            var prog_done = 0;
-            var prog_done_prev = 0;
-            bool program_done_flag = false;
-
-            var all_steps1 = 0l;
-            var all_steps_prev1 = 0l;
-            var all_steps_time_counter1 = 0;
-
-            var all_steps2 = 0l;
-            var all_steps_prev2 = 0l;
-            var all_steps_time_counter2 = 0;
-
-
-            int prev_delta_calib = 0;
-            int prev_homing = 0;
-            bool delta_calib_go_next_p = false;
-            bool delta_calib_nozzle_up = false;
-
-
-            Console.WriteLine("2 "+commands1.Count);
-            int max_count_cur_prog = 0;
-            double jog_len = 100;
-            int stop_len = 21;
-            bool stop_len_setted = false;
+            
             while (udp_client1 != null)
             {
                 // Console.WriteLine("recive udp");
@@ -544,89 +554,64 @@ namespace tcp_to_udp
                                     else if (command.Contains("M619"))//set take change left
                                     {
                                         //i3 vert, i4 rot, 
-;
-                                        var vel_change = 5;
-                                        var prog_cur = new List<StepperFrame>();
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 H", false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[0] + " L", false,false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[0] + " L", false));
-                                        prog_cur.Add(cur_frame.clone());
-                                        
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
-                                        
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[1] + " L", false));
+                                        var prog_cur = StepperPrinter.gen_take_prog(cur_frame, 10d, 4, 3,
+                                            settins_string.take_left_manip_vert,
+                                            settins_string.take_left_manip_rot,
+                                            settins_string.take_left_manip_x,
+                                            settins_string.take_left_manip_y,
+                                            settins_string.take_left_manip_z
+                                            );
 
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[1], settins_string.take_left_manip_y[1], settins_string.take_left_manip_z[1]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[2] + " L", false));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[3], settins_string.take_left_manip_y[3], settins_string.take_left_manip_z[3]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
+                                        start_alternate_prog(prog_cur);
 
 
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[3] + " L", false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[1] + " L", false));
-
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[5], settins_string.take_left_manip_y[5], settins_string.take_left_manip_z[5]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[6], settins_string.take_left_manip_y[6], settins_string.take_left_manip_z[6]), 0, vel_change));
-
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P100 L", false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P100 L", false));
-
-
-                                        alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
-                                        cur_alternately_line = 0;
-                                        cur_alternately_line_internal = 0;
-                                        prog_state = programm_state.ALTERNATELY;
-                                        program_done_flag = false;
-                                        printer.all_motors_stop1 = true;
-                                        printer.all_motors_stop2 = true;
                                     }
 
                                     else if (command.Contains("M620"))//set give change left
                                     {
                                         //i3 vert, i4 rot, 
-                                        ;
-                                        var vel_change = 10;
-                                        var prog_cur = new List<StepperFrame>();
-                                        prog_cur.Add(cur_frame.clone());
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[6], settins_string.take_left_manip_y[6], settins_string.take_left_manip_z[6]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 H", false));
 
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[3] + " L", false,false));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[1] + " L", false));
+                                        var prog_cur = StepperPrinter.gen_give_prog(cur_frame, 10d, 4, 3,
+                                            settins_string.take_left_manip_vert,
+                                            settins_string.take_left_manip_rot,
+                                            settins_string.take_left_manip_x,
+                                            settins_string.take_left_manip_y,
+                                            settins_string.take_left_manip_z
+                                            );
 
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[6], settins_string.take_left_manip_y[6], settins_string.take_left_manip_z[6]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[5], settins_string.take_left_manip_y[5], settins_string.take_left_manip_z[5]), 0, vel_change));
-
-                                        prog_cur.Add(new StepperFrame(2, 587, "I3 P" + settins_string.take_left_manip_vert[0] + " L", false));
-
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[5], settins_string.take_left_manip_y[5], settins_string.take_left_manip_z[5]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[2] + " L", false));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[4], settins_string.take_left_manip_y[4], settins_string.take_left_manip_z[4]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[3], settins_string.take_left_manip_y[3], settins_string.take_left_manip_z[3]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[1] + " L", false));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[2], settins_string.take_left_manip_y[2], settins_string.take_left_manip_z[2]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[1], settins_string.take_left_manip_y[1], settins_string.take_left_manip_z[1]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.take_left_manip_x[0], settins_string.take_left_manip_y[0], settins_string.take_left_manip_z[0]), 0, vel_change));
-                                        prog_cur.Add(new StepperFrame(2, 587, "I4 P100 L", false));
-                                        //----------------------------------------------------------
-
-
-
-                                        alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
-                                        cur_alternately_line = 0;
-                                        cur_alternately_line_internal = 0;
-                                        prog_state = programm_state.ALTERNATELY;
-                                        program_done_flag = false;
-                                        printer.all_motors_stop1 = true;
-                                        printer.all_motors_stop2 = true;
+                                        start_alternate_prog(prog_cur);
                                     }
 
+                                    else if (command.Contains("M621"))//set take change right
+                                    {
+                                        //i5 vert, i6 rot, 
+                                        var prog_cur = StepperPrinter.gen_take_prog(cur_frame, 10d, 6, 5,
+                                            settins_string.take_right_manip_vert,
+                                            settins_string.take_right_manip_rot,
+                                            settins_string.take_right_manip_x,
+                                            settins_string.take_right_manip_y,
+                                            settins_string.take_right_manip_z
+                                            );
+
+                                        start_alternate_prog(prog_cur);
+
+
+                                    }
+
+                                    else if (command.Contains("M622"))//set give change right
+                                    {
+                                        //i5 vert, i6 rot, 
+
+                                        var prog_cur = StepperPrinter.gen_give_prog(cur_frame, 10d, 6, 5,
+                                            settins_string.take_right_manip_vert,
+                                            settins_string.take_right_manip_rot,
+                                            settins_string.take_right_manip_x,
+                                            settins_string.take_right_manip_y,
+                                            settins_string.take_right_manip_z
+                                            );
+
+                                        start_alternate_prog(prog_cur);
+                                    }
 
                                     else if (command.Contains("M700"))//set all stop
                                     {
@@ -1127,20 +1112,14 @@ namespace tcp_to_udp
 
 
             // settins_string.soft_max_pos2 = new int[2];
-            /*int ps_take = 10;
-            settins_string.give_left_manip_rot = new int[ps_take];
-            settins_string.give_left_manip_vert = new int[ps_take];
+            int ps_take = 10;
 
-            settins_string.give_left_manip_x = new double[ps_take];
-            settins_string.give_left_manip_y = new double[ps_take];
-            settins_string.give_left_manip_z = new double[ps_take];
+            settins_string.take_right_manip_rot = new int[ps_take];
+            settins_string.take_right_manip_vert = new int[ps_take];
 
-            settins_string.take_left_manip_rot = new int[ps_take];
-            settins_string.take_left_manip_vert = new int[ps_take];
-
-            settins_string.take_left_manip_x = new double[ps_take];
-            settins_string.take_left_manip_y = new double[ps_take];
-            settins_string.take_left_manip_z = new double[ps_take];*/
+            settins_string.take_right_manip_x = new double[ps_take];
+            settins_string.take_right_manip_y = new double[ps_take];
+            settins_string.take_right_manip_z = new double[ps_take];
 
             for (int i = 0; i<settins_string.motors_count1;i++)
             {
@@ -1417,12 +1396,12 @@ namespace tcp_to_udp
         public double[] take_left_manip_z;
 
         //------------------------------------------
-        public int[] give_left_manip_rot;
-        public int[] give_left_manip_vert;
+        public int[] take_right_manip_rot;
+        public int[] take_right_manip_vert;
 
-        public double[] give_left_manip_x;
-        public double[] give_left_manip_y;
-        public double[] give_left_manip_z;
+        public double[] take_right_manip_x;
+        public double[] take_right_manip_y;
+        public double[] take_right_manip_z;
 
 
         //------------------------------------------
