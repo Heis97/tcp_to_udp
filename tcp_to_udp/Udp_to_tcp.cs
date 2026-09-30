@@ -649,7 +649,7 @@ namespace tcp_to_udp
                                         start_alternate_prog(prog_cur.ToArray());
                                     }
 
-                                    else if (command.Contains("M630"))//set xy_calibrate
+                                    else if (command.Contains("M631"))//set xy_calibrate
                                     {
                                         
                                         calibrate_nossle_stage_counter = 0;
