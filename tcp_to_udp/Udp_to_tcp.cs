@@ -227,7 +227,13 @@ namespace tcp_to_udp
         double jog_len = 100;
         int stop_len = 21;
         bool stop_len_setted = false;
-        enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY }
+
+        double calibr_vel = 10d;
+        bool calibrating_nossle = false;
+        int calibrate_nossle_stage_counter = 0;
+        List< StepperFrame> calibrate_nossle_frames = new List< StepperFrame>();
+
+        enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY , CALIBRATE}
 
         void start_alternate_prog(StepperFrame[] prog_cur)
         {
@@ -239,6 +245,8 @@ namespace tcp_to_udp
             printer.all_motors_stop1 = true;
             printer.all_motors_stop2 = true;
         }
+
+
         void recieve_udp_all()
         {
             int count_ins = 0;
@@ -641,6 +649,20 @@ namespace tcp_to_udp
                                         start_alternate_prog(prog_cur.ToArray());
                                     }
 
+                                    else if (command.Contains("M630"))//set xy_calibrate
+                                    {
+                                        
+                                        calibrate_nossle_stage_counter = 0;
+                                        calibrating_nossle = true;
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(cur_frame.clone());
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, jog_xyz_vel));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                        calibrate_nossle_stage_counter = 1;
+                                        calibrate_nossle_frames = new List<StepperFrame>();
+
+                                    }
+
 
                                     else if (command.Contains("M700"))//set all stop
                                     {
@@ -890,6 +912,9 @@ namespace tcp_to_udp
 
 
                                 }
+
+
+
                                 //delta calib_handler-----------------------------------------------------------------
 
                                 var cur_delta_calib = Convert.ToInt32(vars_from_mes[8]);//!!!!!!!cur_send ==0
@@ -980,6 +1005,71 @@ namespace tcp_to_udp
                                 // Console.WriteLine(mes);
                                 prev_pos = (long[]) cur_pos.Clone();
 
+                                var calibr_x = -1;
+                                var calibr_y = -1;
+                                var calibr_z = -1;
+                                //nossle calib_handler-----------------------------------------------------------------
+                                if (calibrating_nossle)
+                                {
+
+                                    if(calibrate_nossle_stage_counter == 1 && prog_state == programm_state.STOP)
+                                    {
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(1, 589, "A1", false));
+                                        prog_cur.Add(cur_frame.clone());
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[1], settins_string.calibrate_nossle_y[1], settins_string.calibrate_nossle_z[1]), 0, calibr_vel));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                        calibrate_nossle_stage_counter = 2;
+                                    }
+
+                                    if (calibrate_nossle_stage_counter == 2 && calibr_x == 2)
+                                    {
+                                        calibrate_nossle_frames.Add(cur_frame.clone());
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(1, 589, "A0", false));
+                                        prog_cur.Add(cur_frame.clone());
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[1], settins_string.calibrate_nossle_y[1], settins_string.calibrate_nossle_z[1]), 0, jog_xyz_vel));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                        calibrate_nossle_stage_counter = 3;
+                                    }
+
+
+                                    if (calibrate_nossle_stage_counter == 3 && prog_state == programm_state.STOP)
+                                    {
+                                        //calibrate_nossle_frames.Add(cur_frame.clone());
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(1, 589, "A1", false));
+                                        prog_cur.Add(cur_frame.clone());
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, calibr_vel));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                        calibrate_nossle_stage_counter = 4;
+                                    }
+
+                                    if (calibrate_nossle_stage_counter == 4 && calibr_x == 2)
+                                    {
+                                        calibrate_nossle_frames.Add(cur_frame.clone()); 
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(1, 589, "A0", false));
+                                        prog_cur.Add(cur_frame.clone());
+                                        prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, jog_xyz_vel));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                        calibrate_nossle_stage_counter = 5;
+                                    }
+
+
+
+
+
+
+
+
+                                    if (calibrate_nossle_stage_counter >1 && prog_state == programm_state.STOP)
+                                    {
+                                        Console.WriteLine("calibrate failed stage_counter == "+ calibrate_nossle_stage_counter);
+                                    }
+
+                                }
+                               
 
                             }
                             //catch
@@ -1164,6 +1254,11 @@ namespace tcp_to_udp
             settins_string.take_right_manip_x = new double[ps_take];
             settins_string.take_right_manip_y = new double[ps_take];
             settins_string.take_right_manip_z = new double[ps_take];*/
+
+            int ps_take = 10;
+            settins_string.calibrate_nossle_x = new double[ps_take];
+            settins_string.calibrate_nossle_y = new double[ps_take];
+            settins_string.calibrate_nossle_z = new double[ps_take];
 
             for (int i = 0; i<settins_string.motors_count1;i++)
             {
@@ -1449,6 +1544,12 @@ namespace tcp_to_udp
 
 
         //------------------------------------------
+
+        public double[] calibrate_nossle_x;
+        public double[] calibrate_nossle_y;
+        public double[] calibrate_nossle_z;
+        //------------------------------------------
+
         public int table_work_pos   = 0;
         public int table_change_pos = 0;
         public int table_open_pos = 0;
