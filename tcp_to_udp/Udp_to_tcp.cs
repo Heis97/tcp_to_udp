@@ -613,6 +613,35 @@ namespace tcp_to_udp
                                         start_alternate_prog(prog_cur);
                                     }
 
+                                    else if (command.Contains("M623"))//set bring tablet
+                                    {
+
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(2, 577, "I0 V" + settins_string.servo_open_val, false, false));
+                                        prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - settins_string.servo_open_val), false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_change_pos + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I2 P" + settins_string.lift_up_val + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 577, "I0 V" + settins_string.servo_close_val, false,false));
+                                        prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180-settins_string.servo_close_val), false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I2 H" , false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_work_pos + " L", false));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                    }
+
+                                    else if (command.Contains("M624"))//set give tablet
+                                    {
+
+                                        var prog_cur = new List<StepperFrame>();
+                                        prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_change_pos + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I2 P" + settins_string.lift_up_val + " L", false));
+                                        prog_cur.Add(new StepperFrame(2, 577, "I0 V" + settins_string.servo_open_val, false, false));
+                                        prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - settins_string.servo_open_val), false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I2 H", false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_open_pos + " L", false));
+                                        start_alternate_prog(prog_cur.ToArray());
+                                    }
+
+
                                     else if (command.Contains("M700"))//set all stop
                                     {
                                         prog_state = programm_state.STOP;
@@ -634,6 +663,11 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(2, 587, "I4 H", false, false));
                                         prog_cur.Add(new StepperFrame(2, 587, "I5 H", false, false));
                                         prog_cur.Add(new StepperFrame(2, 587, "I6 H", false));
+
+                                        prog_cur.Add(new StepperFrame(2, 587, "I3 S100 L", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I4 S100 L", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I5 S100 L", false, false));
+                                        prog_cur.Add(new StepperFrame(2, 587, "I6 S100 L", false));
 
                                         start_alternate_prog(prog_cur.ToArray());
 
@@ -1417,9 +1451,13 @@ namespace tcp_to_udp
         //------------------------------------------
         public int table_work_pos   = 0;
         public int table_change_pos = 0;
+        public int table_open_pos = 0;
         public int lift_up_val      = 0;
 
+        public int servo_open_val = 0;
+        public int servo_close_val = 0;
 
+        
 
         public SettingsString()
         {
