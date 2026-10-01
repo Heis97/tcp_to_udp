@@ -235,6 +235,8 @@ namespace tcp_to_udp
         int calibrate_nossle_stage_counter = 0;
         List< StepperFrame> calibrate_nossle_frames = new List< StepperFrame>();
 
+        int[] tool_inds = new int[4];
+
         enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY , CALIBRATE}
 
         void start_alternate_prog(StepperFrame[] prog_cur)
@@ -809,8 +811,34 @@ namespace tcp_to_udp
                                     var nossle_calib_vals = vars_from_mes[10];
                                     calibr_x = Convert.ToInt32(nossle_calib_vals[0]) - 48;
                                     calibr_y = Convert.ToInt32(nossle_calib_vals[1]) - 48;
-                                    calibr_z = Convert.ToInt32(nossle_calib_vals[2])-48;
-                                    //Console.WriteLine("calibr_nossle: " + calibr_x + " " + calibr_y + " " + calibr_z + " ");
+                                    calibr_z = Convert.ToInt32(nossle_calib_vals[2]) - 48;
+
+                                    var tool_recogn_vals = vars_from_mes[11];
+                                    var tool0_0 = Convert.ToInt32(tool_recogn_vals[0]) - 48;
+                                    var tool0_1 = Convert.ToInt32(tool_recogn_vals[1]) - 48;
+                                    var tool0_2 = Convert.ToInt32(tool_recogn_vals[2]) - 48;
+
+                                    var tool1_0 = Convert.ToInt32(tool_recogn_vals[3]) - 48;
+                                    var tool1_1 = Convert.ToInt32(tool_recogn_vals[4]) - 48;
+                                    var tool1_2 = Convert.ToInt32(tool_recogn_vals[5]) - 48;
+
+                                    var tool2_0 = Convert.ToInt32(tool_recogn_vals[6]) - 48;
+                                    var tool3_0 = Convert.ToInt32(tool_recogn_vals[7]) - 48;
+
+                                    tool_inds = new int[] { 0, 0, 0, 0 };
+
+                                    if (tool0_0 == 0) tool_inds[0] = 1;
+                                    if (tool0_1 == 0) tool_inds[0] = 2;
+                                    if (tool0_2 == 0) tool_inds[0] = 3;
+
+                                    if (tool1_0 == 0) tool_inds[1] = 1;
+                                    if (tool1_1 == 0) tool_inds[1] = 2;
+                                    if (tool1_2 == 0) tool_inds[1] = 3;
+
+                                    if (tool2_0 == 0) tool_inds[2] = 1;
+                                    if (tool3_0 == 0) tool_inds[3] = 1;
+
+                                    Console.WriteLine("tools: "+tool_inds[0] + " " + tool_inds[1] + " " + tool_inds[2] + " "+ tool_inds[3]);
 
                                 }
                                 var cur_prog_line_board = Convert.ToInt64(vars_from_mes[2]);
