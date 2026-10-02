@@ -2742,7 +2742,7 @@ namespace tcp_to_udp
             movement = true;
         }
 
-        public StepperFrame(int plate_num, int com_num, string body, bool kinematic,bool wait = true)
+        public StepperFrame(int plate_num, int com_num, string body, bool kinematic = false,bool wait = true)
         {
             this.plate_num = plate_num;
             this.com_num = com_num;
@@ -2754,6 +2754,13 @@ namespace tcp_to_udp
         
         public string get_command(StepperPrinter printer)
         {
+
+            if(plate_num==0)
+            {
+                var com = "main M" + com_num + " " + body;
+                return com;
+            }
+
             if(kinematic && movement)
             {
 
@@ -3254,7 +3261,27 @@ namespace tcp_to_udp
             }
             return coms.ToArray();
         }
+        public static List<List<StepperFrame>> prepare_main_alternate_g_code_to_load(StepperFrame[] stepper_frames)
+        {
+            var main_frames = new List<List<StepperFrame>>();
+            var oct_frames = new List<StepperFrame>();
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                if (stepper_frames[i].plate_num ==0)
+                {
+                    if(oct_frames.Count != 0) main_frames.Add(oct_frames);
+                    oct_frames = new List<StepperFrame>();
+                    oct_frames.Add(stepper_frames[i]);
+                    main_frames.Add(oct_frames);
+                }
+                else
+                {
+                    oct_frames.Add(stepper_frames[i]);
+                }
 
+            }
+            return main_frames;
+        }
         public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperPrinter printer, StepperFrame offset)
         {
             var frames_out = new List<StepperFrame>();
