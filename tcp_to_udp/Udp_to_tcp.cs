@@ -267,6 +267,7 @@ namespace tcp_to_udp
 
         public void start_alternate_prog(StepperFrame[] prog_cur)
         {
+            
             alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur, printer, offset_frame).ToList();
             cur_alternately_line = 0;
             cur_alternately_line_internal = 0;
@@ -356,14 +357,13 @@ namespace tcp_to_udp
                         prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(), printer, offset_frame)?.ToList();
 
 
-                    if (prog_commands != null)
+                        if (prog_commands != null)
                         {
                             prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
                             cur_prog_line = 0;
                             prog_state = programm_state.MOVE;
                         }
-                        cur_prog_line = 0;
-                        prog_state = programm_state.MOVE;
+
                         //Console.WriteLine("move");
                     }
 

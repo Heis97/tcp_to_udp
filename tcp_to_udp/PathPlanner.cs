@@ -3282,15 +3282,18 @@ namespace tcp_to_udp
             }
             return main_frames;
         }
-        public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperPrinter printer, StepperFrame offset)
+        public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperPrinter printer, StepperFrame offset, StepperFrame cur_frame)
         {
             var frames_out = new List<StepperFrame>();
             var frames_kinematic = new List<StepperFrame>();
+            int kinematic_count = 0;
             for (int i=0; i<stepper_frames.Length; i++)
             {
                 if (stepper_frames[i].kinematic)
                 {
+                    if(kinematic_count==0) frames_kinematic.Add(cur_frame.clone());
                     frames_kinematic.Add(stepper_frames[i]);
+                    kinematic_count++;
                 }
                 else
                 {
