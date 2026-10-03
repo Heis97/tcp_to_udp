@@ -268,7 +268,7 @@ namespace tcp_to_udp
         public void start_alternate_prog(StepperFrame[] prog_cur)
         {
             
-            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur, printer, offset_frame).ToList();
+            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur, printer, offset_frame,cur_frame.clone()).ToList();
             cur_alternately_line = 0;
             cur_alternately_line_internal = 0;
             prog_state = programm_state.ALTERNATELY;
