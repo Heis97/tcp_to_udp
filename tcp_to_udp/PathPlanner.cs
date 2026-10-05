@@ -2726,6 +2726,7 @@ namespace tcp_to_udp
         public bool wait_this_command = true;
         public int len = -1;
         public int prog_number = 0;
+        public int line_number = 0;
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
             frame = _frame;
@@ -2777,7 +2778,7 @@ namespace tcp_to_udp
                 {
                     cur_pos[4] = (long)(cur_pos[4] / printer.koef_vel);
                 }
-                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr * printer.e_steps) + " W" + cur_pos[4] + " I" + prog_number;
+                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr * printer.e_steps) + " W" + cur_pos[4] + " I" + prog_number + " J" + line_number;
                 return com;
 
 
@@ -3270,9 +3271,14 @@ namespace tcp_to_udp
         }
         public static void set_prog_ind(ref StepperFrame[] stepper_frames, int ind_prog)
         {
+            var cur_line_numb = 0;
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 stepper_frames[i].prog_number = ind_prog;
+                if(stepper_frames[i].kinematic && stepper_frames[i].movement)
+                {
+                    stepper_frames[i].line_number = cur_line_numb; cur_line_numb++;
+                }
             }
         }
 
