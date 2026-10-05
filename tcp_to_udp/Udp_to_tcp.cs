@@ -216,7 +216,7 @@ namespace tcp_to_udp
 
         double jog_xyz_vel = 10;
         int ring_en = 0;
-        int lookup_buf = 200;
+        int lookup_buf = 100;
         int safe_len_send_val = 40;
         int prog_done = 0;
         int prog_done_prev = 0;
@@ -266,7 +266,9 @@ namespace tcp_to_udp
                 offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]);
                 Console.WriteLine("offset_nossle" + offset_nossle.p_xyz);
                 Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
-                offset_frame = new StepperFrame( offset_nossle.p_xyz + offset_plate.p_xyz,0,jog_xyz_vel);
+                offset_frame = new StepperFrame(offset_nossle.p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
+
+                Console.WriteLine("offset_frame:" + offset_frame.p_xyz );
             }
         }
 
@@ -283,6 +285,8 @@ namespace tcp_to_udp
             program_done_flag = false;
             printer.all_motors_stop1 = true;
             printer.all_motors_stop2 = true;
+
+           // Console.WriteLine()
         }
 
         public void start_main_alternate_prog(StepperFrame[] prog_cur)
@@ -653,7 +657,7 @@ namespace tcp_to_udp
                 start_alternate_prog(prog_cur.ToArray());
                 calibrate_nossle_stage_counter = 1;
                 calibrate_nossle_frames = new List<StepperFrame>();
-
+                Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
 
 
             }
@@ -694,9 +698,12 @@ namespace tcp_to_udp
 
                 var prog_cur = new List<StepperFrame>();
 
-               // prog_cur.Add(new StepperFrame(1, 589, "X10"));
+                //prog_cur.Add(new StepperFrame(1, 589, "X10"));
                 prog_cur.Add(new StepperFrame(0, 631, ""));
+
                 prog_cur.Add(new StepperFrame(0, 637, "1"));
+                //prog_cur.Add(new StepperFrame(0, 638, "-41.8732 67.1863 -394.5207"));
+                //prog_cur.Add(new StepperFrame(0, 632, "1"));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0,0,50),0,jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 10, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 10, 50), 0, jog_xyz_vel));
@@ -722,17 +729,24 @@ namespace tcp_to_udp
                 cur_plate_type = val;
 
             }
+           
+
+            else if (command.Contains("M638"))
+            {
+                var val = vals_from_command_d(com_board,3);
+               offset_nossle.p_xyz = new Point3d_GL(val[0],val[1],val[2]);
+
+            }
+
+
             else if (command.Contains("M700"))//set all stop
             {
                 prog_state = programm_state.STOP;
                 _TCPserver1.pushBuffer_in("num1 M589 S" + "\n");
                 _TCPserver1.pushBuffer_in("num2 M589 S" + "\n");
                 calibrating_nossle = false;
-                main_alternately_commands_counter = main_alternately_commands.Count+1;
+                main_alternately_commands_counter = main_alternately_commands.Count + 1;
             }
-
-            
-            
         }
 
         void recieve_udp_all()
@@ -996,25 +1010,29 @@ namespace tcp_to_udp
                                 }
 
                                 //prog_work-----------------------------------------------------------------
-                                if (prog_state == programm_state.MOVE && (cur_prog_line_board - cur_prog_line < safe_len_send_val || cur_prog_line_board < lookup_buf - safe_len_send_val))
+                                if (prog_state == programm_state.MOVE && (cur_prog_line + safe_len_send_val < cur_prog_line_board || cur_prog_line < lookup_buf - safe_len_send_val))
                                 {
                                     //Console.WriteLine(mes);
                                     if (cur_prog_line < prog_commands?.Count)
                                     {
                                         _TCPserver1.pushBuffer_in(   prog_commands[cur_prog_line].get_command(printer) + "\n");
                                         cur_prog_line++;
+                                        
 
 
                                     }                                    
                                 }
 
                                 //jog work-----------------------------------------------------------------
-                                if (prog_state == programm_state.JOG && (cur_prog_line_board - cur_jog_line < safe_len_send_val || cur_jog_line < lookup_buf - safe_len_send_val))
+                                if (prog_state == programm_state.JOG && (cur_jog_line + safe_len_send_val < cur_prog_line_board || cur_jog_line < lookup_buf - safe_len_send_val))
                                 {
                                     if (cur_jog_line < jog_commands?.Count)
                                     {
+                                        
                                         var com = jog_commands[cur_jog_line].get_command(printer);
                                         _TCPserver1.pushBuffer_in(com + "\n");
+                                        Console.WriteLine("cur_prog_line_board: " + cur_prog_line_board + "; cur_jog_line: " + cur_jog_line+"/"+ jog_commands?.Count+"; "+com);
+
                                         cur_jog_line++;
                                     }
                                 }
@@ -1028,16 +1046,16 @@ namespace tcp_to_udp
                                         //kinematic----------------------------------------------------------------------------
 
                                         //---------GO-----------------
-                                        if ((cur_prog_line_board - cur_alternately_line_internal  < safe_len_send_val || cur_prog_line_board < lookup_buf - safe_len_send_val) && cur_alternately_line_internal < stop_len)
+                                        if ((cur_alternately_line_internal + safe_len_send_val<cur_prog_line_board  || cur_alternately_line_internal < lookup_buf - safe_len_send_val)&& cur_alternately_line_internal < stop_len)
                                         {
                                             if (alternately_commands[cur_alternately_line].len > 0)
                                             {
                                                 stop_len = alternately_commands[cur_alternately_line].len;
                                             }
                                             var com = alternately_commands[cur_alternately_line].get_command(printer);
-                                            //Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
+                                            Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
                                             _TCPserver1.pushBuffer_in(com + "\n");
-                                            if (alternately_commands[cur_alternately_line].movement) cur_alternately_line_internal++;
+                                            if (alternately_commands[cur_alternately_line].movement && alternately_commands[cur_alternately_line].kinematic) cur_alternately_line_internal++;
                                             if (cur_alternately_line < alternately_commands.Count-1) cur_alternately_line++; //if (cur_alternately_line >= alternately_commands.Count) { prog_state = programm_state.STOP;}
 
                                         }
@@ -1051,20 +1069,23 @@ namespace tcp_to_udp
                                             //wait stop steppers
                                             var com = alternately_commands[cur_alternately_line].get_command(printer);
                                             _TCPserver1.pushBuffer_in(com + "\n");
-                                            //Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
+                                            Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
                                             if (alternately_commands[cur_alternately_line].wait_this_command)
                                             {
                                                 printer.all_motors_stop1 = false;
                                                 printer.all_motors_stop2 = false;
                                                 all_steps_time_counter1 = 0;
                                                 all_steps_time_counter2 = 0;
+                                                Console.WriteLine("printer.all_motors_stop1 ");
                                             }
                                             cur_alternately_line++; if (cur_alternately_line >= alternately_commands.Count) { prog_state = programm_state.STOP; }
+                                            //cur_alternately_line_internal = 0;
                                         }
                                     }
                                     //---------STOP-----------------      
                                     if (program_done_flag)
                                     {
+                                        Console.WriteLine("program_done_flag cur_alternately_line: " + cur_alternately_line);
                                         //wait ring buf
                                         cur_alternately_line_internal = 0;
                                         stop_len = 21;
@@ -1075,22 +1096,26 @@ namespace tcp_to_udp
                                 }
 
                                 //main alternately work-----------------------------------------------------------------
-                                if(main_alternately_commands_exec && prog_state == programm_state.STOP && main_alternately_commands_counter < main_alternately_commands.Count && !calibrating_nossle)
+                                if(main_alternately_commands_exec && prog_state == programm_state.STOP  && main_alternately_commands_counter < main_alternately_commands.Count && !calibrating_nossle)
                                 {
-                                    if (main_alternately_commands[main_alternately_commands_counter][0].plate_num ==0)
+                                   // if(all_steps1 == 0 && all_steps2 == 0)
                                     {
-                                        
-                                        var com = main_alternately_commands[main_alternately_commands_counter][0].get_command(printer);
-                                        Console.WriteLine(main_alternately_commands_counter+" "+ main_alternately_commands.Count + " "+com);
-                                        exec_main_prog(com);
+                                        if (main_alternately_commands[main_alternately_commands_counter][0].plate_num == 0)
+                                        {
+
+                                            var com = main_alternately_commands[main_alternately_commands_counter][0].get_command(printer);
+                                            Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
+                                            exec_main_prog(com);
+                                        }
+                                        else
+                                        {
+
+                                            start_alternate_prog(main_alternately_commands[main_alternately_commands_counter].ToArray());
+                                        }
+
+                                        main_alternately_commands_counter++;
                                     }
-                                    else
-                                    {
-                                        
-                                        start_alternate_prog(main_alternately_commands[main_alternately_commands_counter].ToArray());
-                                    }
-                                   
-                                   main_alternately_commands_counter++;
+                                    
                                 }
 
                                 //delta calib_handler-----------------------------------------------------------------
@@ -1188,7 +1213,7 @@ namespace tcp_to_udp
                                 if (calibrating_nossle)
                                 {
                                     //----CALIBR_X------------------------------------------------------------------------------------
-                                    if (calibrate_nossle_stage_counter == 1 && prog_state == programm_state.STOP)
+                                    if (calibrate_nossle_stage_counter == 1 && prog_state == programm_state.STOP  && prog_done == 1)
                                     {
                                         var prog_cur = new List<StepperFrame>();
                                         prog_cur.Add(new StepperFrame(1, 589, "A1", false));
@@ -1196,6 +1221,8 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[1], settins_string.calibrate_nossle_y[1], settins_string.calibrate_nossle_z[1]), 0, calibr_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 2;
+
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
 
                                     }
 
@@ -1208,10 +1235,11 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[1], settins_string.calibrate_nossle_y[1], settins_string.calibrate_nossle_z[1]), 0, jog_xyz_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 3;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
                                     }
 
 
-                                    if (calibrate_nossle_stage_counter == 3 && prog_state == programm_state.STOP)
+                                    if (calibrate_nossle_stage_counter == 3 && prog_state == programm_state.STOP && prog_done == 1)
                                     {
                                         //calibrate_nossle_frames.Add(cur_frame.clone());
                                         var prog_cur = new List<StepperFrame>();
@@ -1220,6 +1248,7 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, calibr_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 4;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
                                     }
 
                                     if (calibrate_nossle_stage_counter == 4 && calibr_x == 2)
@@ -1232,13 +1261,14 @@ namespace tcp_to_udp
                                         //prog_cur.Add(new StepperFrame((calibrate_nossle_frames[0].p_xyz + calibrate_nossle_frames[1].p_xyz)/2, 0, calibr_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 5;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
                                     }
 
 
 
                                     //----CALIBR_Y------------------------------------------------------------------------------------
 
-                                    if (calibrate_nossle_stage_counter == 5 && prog_state == programm_state.STOP)
+                                    if (calibrate_nossle_stage_counter == 5 && prog_state == programm_state.STOP && prog_done == 1)
                                     {
                                         var prog_cur = new List<StepperFrame>();
                                         prog_cur.Add(new StepperFrame(1, 589, "B1", false));
@@ -1246,6 +1276,7 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[2], settins_string.calibrate_nossle_y[2], settins_string.calibrate_nossle_z[2]), 0, calibr_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 6;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
 
                                     }
 
@@ -1258,10 +1289,11 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[2], settins_string.calibrate_nossle_y[2], settins_string.calibrate_nossle_z[2]), 0, jog_xyz_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 7;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
                                     }
 
 
-                                    if (calibrate_nossle_stage_counter == 7 && prog_state == programm_state.STOP)
+                                    if (calibrate_nossle_stage_counter == 7 && prog_state == programm_state.STOP && prog_done == 1)
                                     {
                                         //calibrate_nossle_frames.Add(cur_frame.clone());
                                         var prog_cur = new List<StepperFrame>();
@@ -1270,6 +1302,7 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, calibr_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 8;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
                                     }
 
                                     if (calibrate_nossle_stage_counter == 8 && calibr_y == 2)
@@ -1287,12 +1320,13 @@ namespace tcp_to_udp
                                        
                                         
                                         calibrate_nossle_stage_counter = 9;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
                                     }
 
 
                                     //----CALIBR_Z------------------------------------------------------------------------------------
 
-                                    if (calibrate_nossle_stage_counter == 9 && prog_state == programm_state.STOP)
+                                    if (calibrate_nossle_stage_counter == 9 && prog_state == programm_state.STOP && prog_done == 1)
                                     {
                                         var prog_cur = new List<StepperFrame>();
                                         prog_cur.Add(new StepperFrame(1, 589, "C1", false));
@@ -1300,6 +1334,7 @@ namespace tcp_to_udp
                                         prog_cur.Add(new StepperFrame(calibrate_nossle_frames[calibrate_nossle_frames.Count-1].p_xyz, 0, calibr_vel));
                                         start_alternate_prog(prog_cur.ToArray());
                                         calibrate_nossle_stage_counter = 10;
+                                        Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
 
                                     }
 
@@ -1330,12 +1365,12 @@ namespace tcp_to_udp
 
 
 
-                                    if (calibrate_nossle_stage_counter >1 && prog_state == programm_state.STOP)
+                                    /*if (calibrate_nossle_stage_counter >1 && prog_state == programm_state.STOP)
                                     {
                                         Console.WriteLine("calibrate failed stage_counter == "+ calibrate_nossle_stage_counter);
                                         
                                         calibrating_nossle = false;
-                                    }
+                                    }*/
 
                                 }
                                
@@ -1578,6 +1613,19 @@ namespace tcp_to_udp
             var vars = command_af.Trim().Split(' ');
             var var = Convert.ToDouble(vars[1]);
             return var;
+        }
+
+        static double[] vals_from_command_d(string cmd, int len)
+        {
+            var command_af = cmd.Replace("  ", " ");
+            var vars = command_af.Trim().Split(' ');
+            var vals = new double[len];
+            for(int i=0;  i<len; i++)
+            {
+                vals[i] = Convert.ToDouble(vars[1+i]);
+            }
+            
+            return vals;
         }
         Thread start_cam(int ind,int port)
         {

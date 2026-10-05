@@ -2914,7 +2914,7 @@ namespace tcp_to_udp
             }
             lines[lines.Length - 1].vel_end = StepperLine.min_vel;
 
-            Console.WriteLine("__________comp_vel__________________"); 
+            //Console.WriteLine("__________comp_vel__________________"); 
 
             for(int i=0; i<lines.Length; i++)
             {
@@ -3240,6 +3240,18 @@ namespace tcp_to_udp
             }
             return coms.ToArray();
         }
+        public static int comp_stop_len(StepperFrame[] stepper_frames)
+        {
+            int stop_len = 0;
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                if (stepper_frames[i].kinematic && stepper_frames[i].movement)
+                {
+                    stop_len++;
+                }
+            }
+            return stop_len;
+        }
 
         public static StepperFrame[] prepare_g_code_to_load(StepperFrame[] stepper_frames, ref StepperPrinter printer)
         {
@@ -3247,8 +3259,10 @@ namespace tcp_to_udp
             printer.cur_prog_number++;
             coms.Add(new StepperFrame(1, 588, "A0 F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
             coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
-            int i_start = Math.Min(10, stepper_frames.Length - 1);
-            for (int i = 0; i < stepper_frames.Length; i++)
+            var stop_len = comp_stop_len(stepper_frames);
+
+            int i_start = Math.Min(10, stop_len - 1);
+            for (int i = 0; i < stop_len; i++)
             {
 
                 coms.Add(stepper_frames[i]);
@@ -3256,7 +3270,7 @@ namespace tcp_to_udp
                 if (i == i_start)
                 {
                     var fr_len = new StepperFrame(1, 588, "A1 D0 H"+ printer.cur_prog_number, true);
-                    fr_len.len = stepper_frames.Length;
+                    fr_len.len = stop_len;
                     coms.Add(fr_len); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 }
 
@@ -3310,6 +3324,8 @@ namespace tcp_to_udp
             var frames_out = new List<StepperFrame>();
             var frames_kinematic = new List<StepperFrame>();
             int kinematic_count = 0;
+
+            Console.WriteLine("offset_alternate: " + offset.p_xyz);
             for (int i=0; i<stepper_frames.Length; i++)
             {
                 if (stepper_frames[i].kinematic)
