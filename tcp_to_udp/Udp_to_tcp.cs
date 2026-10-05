@@ -1009,7 +1009,7 @@ namespace tcp_to_udp
                                 }
 
                                 //jog work-----------------------------------------------------------------
-                                if (prog_state == programm_state.JOG && (cur_prog_line_board - cur_jog_line < safe_len_send_val || cur_prog_line_board < lookup_buf - safe_len_send_val))
+                                if (prog_state == programm_state.JOG && (cur_prog_line_board - cur_jog_line < safe_len_send_val || cur_jog_line < lookup_buf - safe_len_send_val))
                                 {
                                     if (cur_jog_line < jog_commands?.Count)
                                     {

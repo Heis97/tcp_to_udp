@@ -3245,7 +3245,7 @@ namespace tcp_to_udp
         {
             var coms = new List<StepperFrame>();
             printer.cur_prog_number++;
-            coms.Add(new StepperFrame(1, 588, "F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
+            coms.Add(new StepperFrame(1, 588, "A0 F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
             coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             int i_start = Math.Min(10, stepper_frames.Length - 1);
             for (int i = 0; i < stepper_frames.Length; i++)
