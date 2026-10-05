@@ -216,7 +216,8 @@ namespace tcp_to_udp
 
         double jog_xyz_vel = 10;
         int ring_en = 0;
-
+        int lookup_buf = 200;
+        int safe_len_send_val = 40;
         int prog_done = 0;
         int prog_done_prev = 0;
         bool program_done_flag = false;
@@ -995,7 +996,7 @@ namespace tcp_to_udp
                                 }
 
                                 //prog_work-----------------------------------------------------------------
-                                if (prog_state == programm_state.MOVE && cur_prog_line - cur_prog_line_board < 40)
+                                if (prog_state == programm_state.MOVE && (cur_prog_line_board - cur_prog_line < safe_len_send_val || cur_prog_line_board < lookup_buf - safe_len_send_val))
                                 {
                                     //Console.WriteLine(mes);
                                     if (cur_prog_line < prog_commands?.Count)
@@ -1008,7 +1009,7 @@ namespace tcp_to_udp
                                 }
 
                                 //jog work-----------------------------------------------------------------
-                                if (prog_state == programm_state.JOG && cur_jog_line - cur_prog_line_board < 40)
+                                if (prog_state == programm_state.JOG && (cur_prog_line_board - cur_jog_line < safe_len_send_val || cur_prog_line_board < lookup_buf - safe_len_send_val))
                                 {
                                     if (cur_jog_line < jog_commands?.Count)
                                     {
@@ -1027,7 +1028,7 @@ namespace tcp_to_udp
                                         //kinematic----------------------------------------------------------------------------
 
                                         //---------GO-----------------
-                                        if (cur_alternately_line_internal - cur_prog_line_board < 40 && cur_alternately_line_internal < stop_len)
+                                        if ((cur_prog_line_board - cur_alternately_line_internal  < safe_len_send_val || cur_prog_line_board < lookup_buf - safe_len_send_val) && cur_alternately_line_internal < stop_len)
                                         {
                                             if (alternately_commands[cur_alternately_line].len > 0)
                                             {

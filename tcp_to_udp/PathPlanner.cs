@@ -3244,7 +3244,7 @@ namespace tcp_to_udp
         {
             var coms = new List<StepperFrame>();
             printer.cur_prog_number++;
-            coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
+            coms.Add(new StepperFrame(1, 588, "F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
             coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             int i_start = Math.Min(10, stepper_frames.Length - 1);
             for (int i = 0; i < stepper_frames.Length; i++)
@@ -3254,7 +3254,7 @@ namespace tcp_to_udp
 
                 if (i == i_start)
                 {
-                    var fr_len = new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length+" H"+ printer.cur_prog_number, true);
+                    var fr_len = new StepperFrame(1, 588, "A1 D0 H"+ printer.cur_prog_number, true);
                     fr_len.len = stepper_frames.Length;
                     coms.Add(fr_len); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 }
