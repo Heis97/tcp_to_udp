@@ -268,7 +268,7 @@ namespace tcp_to_udp
         public void start_alternate_prog(StepperFrame[] prog_cur)
         {
             
-            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur, printer, offset_frame,cur_frame.clone()).ToList();
+            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur,ref printer, offset_frame,cur_frame.clone()).ToList();
             cur_alternately_line = 0;
             cur_alternately_line_internal = 0;
             prog_state = programm_state.ALTERNATELY;
@@ -354,12 +354,12 @@ namespace tcp_to_udp
                     if (frames_xyz_list != null)
                     {
                         frames_xyz_list.Insert(0, new StepperFrame(cur_frame.p_xyz - offset_frame.p_xyz, 0, jog_xyz_vel));
-                        prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(), printer, offset_frame)?.ToList();
+                        prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(),ref printer, offset_frame)?.ToList();
 
 
                         if (prog_commands != null)
                         {
-                            prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
+                            prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray(), ref printer).ToList();
                             cur_prog_line = 0;
                             prog_state = programm_state.MOVE;
                         }
@@ -403,10 +403,10 @@ namespace tcp_to_udp
                     fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, jog_len);
                     jog_orig.Add(fr_jog);
                     cur_jog_line = 0;
-                    jog_commands = StepperFrame.convert_g_code(jog_orig.ToArray(), printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
+                    jog_commands = StepperFrame.convert_g_code(jog_orig.ToArray(),ref printer, new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0)).ToList();
                     if (jog_commands != null)
                     {
-                        jog_commands = StepperFrame.prepare_g_code_to_load(jog_commands.ToArray()).ToList();
+                        jog_commands = StepperFrame.prepare_g_code_to_load(jog_commands.ToArray(), ref printer).ToList();
                         prog_state = programm_state.JOG;
                     }
 
@@ -443,10 +443,10 @@ namespace tcp_to_udp
                                         new StepperFrame(cur_frame.p_xyz-offset_frame.p_xyz,0,jog_xyz_vel),
                                         new StepperFrame(new Point3d_GL(),0,jog_xyz_vel),
                 };
-                prog_commands = StepperFrame.convert_g_code(frames_xyz_list, printer, offset_frame).ToList();
+                prog_commands = StepperFrame.convert_g_code(frames_xyz_list,ref printer, offset_frame).ToList();
                 if (prog_commands != null)
                 {
-                    prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
+                    prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray(), ref printer).ToList();
                     cur_prog_line = 0;
                     prog_state = programm_state.MOVE;
                     Console.WriteLine("move");
@@ -1057,10 +1057,10 @@ namespace tcp_to_udp
                                         //prog_orig_commands g code to next point
                                         var frames_xyz_test = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
                                         
-                                        prog_commands = StepperFrame.convert_g_code(frames_xyz_test, printer, offset_frame).ToList();
+                                        prog_commands = StepperFrame.convert_g_code(frames_xyz_test,ref printer, offset_frame).ToList();
                                         if(prog_commands!=null)
                                         {
-                                            prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray()).ToList();
+                                            prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray(), ref printer).ToList();
                                             max_count_cur_prog = prog_commands.Count;
                                             cur_prog_line = 0;
                                             prog_state = programm_state.MOVE;

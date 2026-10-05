@@ -1780,10 +1780,11 @@ namespace tcp_to_udp
     public class StepperPrinter
     {
         public double abs_pos_extr = 0;
-
+        
         static double cos30 = 0.86602540378;
         static double sin30 = 0.5;
 
+        public int cur_prog_number = 0;
         
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
@@ -2723,6 +2724,7 @@ namespace tcp_to_udp
         public bool movement = true;
         public bool wait_this_command = true;
         public int len = -1;
+        public int prog_number = 0;
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
             frame = _frame;
@@ -2774,7 +2776,7 @@ namespace tcp_to_udp
                 {
                     cur_pos[4] = (long)(cur_pos[4] / printer.koef_vel);
                 }
-                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr * printer.e_steps) + " W" + cur_pos[4];
+                var com = "num" + plate_num + " M588 X" + cur_pos[0] + " Y" + cur_pos[1] + " Z" + cur_pos[2] + " E" + (long)(printer.abs_pos_extr * printer.e_steps) + " W" + cur_pos[4] + " I" + prog_number;
                 return com;
 
 
@@ -3197,7 +3199,7 @@ namespace tcp_to_udp
             return coms.ToArray();
         }
 
-        public static StepperFrame[] convert_g_code(StepperFrame[] orig_g_code, StepperPrinter printer, StepperFrame offset)
+        public static StepperFrame[] convert_g_code(StepperFrame[] orig_g_code,ref StepperPrinter printer, StepperFrame offset)
         {
             var off_z = 0d;
             for (int i = 0; i < orig_g_code.Length; i++)
@@ -3236,20 +3238,21 @@ namespace tcp_to_udp
             return coms.ToArray();
         }
 
-        public static StepperFrame[] prepare_g_code_to_load(StepperFrame[] stepper_frames)
+        public static StepperFrame[] prepare_g_code_to_load(StepperFrame[] stepper_frames, ref StepperPrinter printer)
         {
             var coms = new List<StepperFrame>();
-
+            printer.cur_prog_number++;
             coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
             coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             int i_start = Math.Min(10, stepper_frames.Length - 1);
             for (int i = 0; i < stepper_frames.Length; i++)
             {
+
                 coms.Add(stepper_frames[i]);
 
                 if (i == i_start)
                 {
-                    var fr_len = new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length, true);
+                    var fr_len = new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length+" H"+ printer.cur_prog_number, true);
                     fr_len.len = stepper_frames.Length;
                     coms.Add(fr_len); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 }
@@ -3259,8 +3262,18 @@ namespace tcp_to_udp
                 //var fr_stop = new StepperFrame(1, 588, "A0 D0 C0", true);
                 //coms.Add(fr_stop);
             }
+            set_prog_ind(ref stepper_frames, printer.cur_prog_number);
+
             return coms.ToArray();
         }
+        public static void set_prog_ind(ref StepperFrame[] stepper_frames, int ind_prog)
+        {
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                stepper_frames[i].prog_number = ind_prog;
+            }
+        }
+
         public static List<List<StepperFrame>> prepare_main_alternate_g_code_to_load(StepperFrame[] stepper_frames)
         {
             var main_frames = new List<List<StepperFrame>>();
@@ -3280,9 +3293,10 @@ namespace tcp_to_udp
                 }
 
             }
+            if (oct_frames.Count != 0) main_frames.Add(oct_frames);
             return main_frames;
         }
-        public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperPrinter printer, StepperFrame offset, StepperFrame cur_frame)
+        public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames,ref StepperPrinter printer, StepperFrame offset, StepperFrame cur_frame)
         {
             var frames_out = new List<StepperFrame>();
             var frames_kinematic = new List<StepperFrame>();
@@ -3299,8 +3313,8 @@ namespace tcp_to_udp
                 {
                     if(frames_kinematic.Count>0)
                     {
-                        var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(), printer, offset).ToList();
-                        var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray());
+                        var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(),ref printer, offset).ToList();
+                        var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray(), ref printer);
                         frames_kinematic = new List<StepperFrame>();
                         frames_out.AddRange(frames_kinematic_prep);
                     }
@@ -3312,8 +3326,8 @@ namespace tcp_to_udp
 
             if (frames_kinematic.Count > 0)
             {
-                var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(), printer, offset).ToList();
-                var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray());
+                var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(),ref printer, offset).ToList();
+                var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray(), ref printer);
                 frames_kinematic = new List<StepperFrame>();
                 frames_out.AddRange(frames_kinematic_prep);
             }
