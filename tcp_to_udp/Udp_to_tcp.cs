@@ -275,7 +275,7 @@ namespace tcp_to_udp
            
             var offs = cur_frame.clone();
             offs.p_xyz -= offset_frame.p_xyz;
-            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur, printer, offset_frame, offs).ToList();
+            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur,ref printer, offset_frame, offs).ToList();
             cur_alternately_line = 0;
             cur_alternately_line_internal = 0;
             prog_state = programm_state.ALTERNATELY;
