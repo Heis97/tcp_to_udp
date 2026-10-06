@@ -214,7 +214,7 @@ namespace tcp_to_udp
             CvInvoke.WaitKey();
         }
 
-        double jog_xyz_vel = 100;
+        double jog_xyz_vel = 10;
         int ring_en = 0;
         int lookup_buf = 100;
         int safe_len_send_val = 40;
@@ -1441,7 +1441,7 @@ namespace tcp_to_udp
                         var mes = Encoding.ASCII.GetString(res) + "\n";
                         //Console.WriteLine("res2: " + mes);
 
-                        if (res != null)
+                        if (res != null && !mes.Contains('M'))
                         {
                             var vars_from_mes = mes.Split(' ');
                             var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
@@ -1932,9 +1932,9 @@ namespace tcp_to_udp
 
         public void apply_planner_settings()
         {
-            StepperLine.min_dist = min_dist;
-            StepperLine.printer_max_r = max_r;
-            StepperLine.printer_max_acs = max_acs;
+            StepperPrinter.min_dist = min_dist;
+            StepperPrinter.printer_max_r = max_r;
+            StepperPrinter.printer_max_acs = max_acs;
         }
 
     }
