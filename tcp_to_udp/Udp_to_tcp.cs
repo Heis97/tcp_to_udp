@@ -406,7 +406,7 @@ namespace tcp_to_udp
 
             else if (command.Contains("M611"))//jog 
             {
-                if (prog_state == programm_state.STOP || prog_state == programm_state.PAUSE || all_steps_kinem ==0)
+                if ((prog_state == programm_state.STOP || prog_state == programm_state.PAUSE ) && all_steps_kinem ==0)
                 {
                     var val = val_from_command(com_board);
                     var jog_orig = new List<StepperFrame>();
