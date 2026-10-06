@@ -222,6 +222,8 @@ namespace tcp_to_udp
         int prog_done_prev = 0;
         bool program_done_flag = false;
 
+
+        long all_steps_kinem = 0l;
         long all_steps1 = 0l;
         long all_steps_prev1 = 0l;
         int all_steps_time_counter1 = 0;
@@ -404,7 +406,7 @@ namespace tcp_to_udp
 
             else if (command.Contains("M611"))//jog 
             {
-                if (prog_state == programm_state.STOP || prog_state == programm_state.PAUSE)
+                if (prog_state == programm_state.STOP || prog_state == programm_state.PAUSE || all_steps_kinem ==0)
                 {
                     var val = val_from_command(com_board);
                     var jog_orig = new List<StepperFrame>();
@@ -985,10 +987,14 @@ namespace tcp_to_udp
                                 {
                                     var cur_steps = new long[8];
                                     all_steps1 = 0;
+
+                                    all_steps_kinem = 0;
                                     for (int i = 0; i < 8; i++)
                                     {
                                         cur_steps[i] = Convert.ToInt32(vars_from_mes[4 + i]);
                                         all_steps1 += Math.Abs(cur_steps[i]);
+
+                                        if(i<3) all_steps_kinem += Math.Abs(cur_steps[i]);
                                     }
                                     //Console.WriteLine(all_steps.ToString());
                                     if (all_steps1 != 0)
@@ -1404,7 +1410,7 @@ namespace tcp_to_udp
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur); 
                                 udp_client1.Send(mes_out, mes_out.Length);
                                
-                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur+" "+mes);
+                                //Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur+" "+mes);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
