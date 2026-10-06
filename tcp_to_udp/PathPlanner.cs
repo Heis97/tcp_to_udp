@@ -2571,14 +2571,14 @@ namespace tcp_to_udp
             ps.Add(p2);
 
 
-            Console.WriteLine("line_ps_________________");
+            /*Console.WriteLine("line_ps_________________");
             for (int i = 0; i < ps.Count; i++)
             {
                 //if (!double.IsNormal(ps[i].x) || !double.IsNormal(ps[i].y) || !double.IsNormal(ps[i].z))
                 {
                     Console.WriteLine(ps[i] + "; p1: " + p1 + "; p2: " + p2);
                 }
-            }
+            }*/
 
 
             return ps.ToArray();
@@ -2642,14 +2642,14 @@ namespace tcp_to_udp
             }
             ps.Add(p2_c);
 
-            Console.WriteLine("arc_ps_________________");
+            /*Console.WriteLine("arc_ps_________________");
             for(int i=0; i<ps.Count;i++)
             {
                 //if (!double.IsNormal(ps[i].x) || !double.IsNormal(ps[i].y) || !double.IsNormal(ps[i].z))
                 {
                     Console.WriteLine(ps[i]+"; p1: "+p1+ "; p2: " + p2 + "; p3: " + p3 );
                 }
-            }
+            }*/
             return ps.ToArray();
         }
 
@@ -3232,7 +3232,7 @@ namespace tcp_to_udp
                 {
                     orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
                 }
-                Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
+                //Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
             }
 
             var stepper_frames = convert_frames_v3(
@@ -3250,7 +3250,7 @@ namespace tcp_to_udp
             {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 var l = stepper_frames[i].get_command(printer);
-                Console.WriteLine(""+ l+" "+ stepper_frames[i].p_xyz);
+                //Console.WriteLine(""+ l+" "+ stepper_frames[i].p_xyz);
                 //Console.WriteLine("p: " + stepper_frames[i].p_xyz);
                 coms.Add(stepper_frames[i]);
             }
