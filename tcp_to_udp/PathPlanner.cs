@@ -2446,7 +2446,12 @@ namespace tcp_to_udp
     public class StepperLine
     {
         static public double min_dist_printer = 0.2;
-        static public double min_dist = 0.1;
+        static public double min_dist = 0.05;
+
+        static public double min_time = 4;//ms
+
+        static public double min_count_time = min_time*100;//ms
+
         static public double min_vel = 2.1;
 
         static public double printer_max_acs = 500;
@@ -2878,17 +2883,11 @@ namespace tcp_to_udp
         {
             if (frames == null) return null;
             if (frames.Length == 0) return null;
-            var time_abs = 0d;
-            
             for (var i = 1; i < frames.Length; i++)
             {
                 var dtime = calc_time(frames[i - 1], frames[i]);
-                if (dtime > 0) frames[i].time_abs = dtime;
+                if (dtime >= 0) frames[i].time_abs = dtime;
                 else Console.WriteLine("dtime < 0");
-
-                //time_abs += dtime;
-
-                //Console.WriteLine(dtime);
             }
 
             return frames;
@@ -3066,6 +3065,29 @@ namespace tcp_to_udp
             return ps_filtr.ToArray();
         }
 
+        public static StepperFrame[] filtr_time(StepperFrame[] frames_in, double min_time)
+        {
+            var ps_filtr = new List<StepperFrame>();
+            ps_filtr.Add(frames_in[0]);
+            bool last_added = false;
+            for (int i = 1; i < frames_in.Length; i++)
+            {
+                var dtime_cur = frames_in[i].time_abs - ps_filtr[ps_filtr.Count - 1].time_abs;
+                if (dtime_cur > min_time)
+                {
+                    ps_filtr.Add(frames_in[i]);
+                    if (i == frames_in.Length - 1) last_added = true;
+                }
+            }
+            if (!last_added)
+            {
+                ps_filtr.RemoveAt(ps_filtr.Count - 1);
+                ps_filtr.Add(frames_in[frames_in.Length - 1]);
+            }
+
+            return ps_filtr.ToArray();
+        }
+
         public static double dist_betw_fr(StepperFrame fr1, StepperFrame fr2)
         {
             var dist = (fr1.p_xyz - fr2.p_xyz).magnitude();
@@ -3080,10 +3102,8 @@ namespace tcp_to_udp
         public static StepperFrame[] e_to_abs(StepperFrame[] frames_in)
         {
             var cur_e = 0d;
-            //Console.WriteLine("e_to_abs");
             for (int i = 0; i < frames_in.Length; i++)
             {
-                //Console.WriteLine(frames_in[i].e);
                 cur_e += frames_in[i].e;
                 frames_in[i].e = cur_e;
                 
@@ -3095,20 +3115,46 @@ namespace tcp_to_udp
         {
             var frames_rel = new StepperFrame[frames_in.Length];
             frames_rel[0] = frames_in[0].clone();
-            //Console.WriteLine("e_to_rel");
-            //Console.WriteLine(frames_in[0].e);
             for (int i = 1; i < frames_in.Length; i++)
             {
                
                 frames_rel[i] = frames_in[i].clone();
-                var de = frames_in[i].e - frames_in[i - 1].e;
-                
+                var de = frames_in[i].e - frames_in[i - 1].e;                
                 frames_rel[i].e = de;
-                //Console.WriteLine(frames_in[i].e);
             }
 
             return frames_rel;
         }
+
+
+        public static StepperFrame[] time_to_abs(StepperFrame[] frames_in)
+        {
+            var cur_time = 0d;
+            for (int i = 0; i < frames_in.Length; i++)
+            {
+                cur_time += frames_in[i].time_abs;
+                frames_in[i].time_abs = cur_time;
+
+            }
+            return frames_in;
+        }
+
+        public static StepperFrame[] time_to_rel(StepperFrame[] frames_in)
+        {
+            var frames_rel = new StepperFrame[frames_in.Length];
+            frames_rel[0] = frames_in[0].clone();
+            for (int i = 1; i < frames_in.Length; i++)
+            {
+
+                frames_rel[i] = frames_in[i].clone();
+                var dtime = frames_in[i].time_abs - frames_in[i - 1].time_abs;
+                frames_rel[i].time_abs = dtime;
+            }
+
+            return frames_rel;
+        }
+
+
         public static StepperFrame[] convert_frames_v3(StepperFrame[] frames_in, double acs,double r_max)
         {
             if (frames_in == null) return null;
@@ -3166,15 +3212,14 @@ namespace tcp_to_udp
             }
 
             var frms = comp_vel(step_lines.ToArray()); if (frms == null)  return null;
-            //for (int i = 0; i < frms.Length; i++) Console.WriteLine(frms[i].e);
-            //frms[0].e = frames_in[0].e;
-            var frms_abs = e_to_abs(frms);
+            var frames_time = frames_calc_time(frms.ToArray());
+            frms = e_to_abs(frms);
+            var frms_abs = time_to_abs(frms);
             //smooth extr , PA
-            var filtr_ps = filtr_dist(frms.ToArray(), StepperLine.min_dist_printer * 0.9);
-
+            var filtr_ps = filtr_time(frms.ToArray(), StepperLine.min_time*0.001);
             filtr_ps = e_to_rel(filtr_ps);
-
-            var frames_time = frames_calc_time(filtr_ps.ToArray());
+            frames_time = time_to_rel(filtr_ps);
+            
             //Console.WriteLine("frames_time_________");
             for(int i  = 1; i < frames_time.Length; i++)
             {
@@ -3250,8 +3295,8 @@ namespace tcp_to_udp
             {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 var l = stepper_frames[i].get_command(printer);
-                //Console.WriteLine(""+ l+" "+ stepper_frames[i].p_xyz);
-                //Console.WriteLine("p: " + stepper_frames[i].p_xyz);
+                Console.Write(""+ l+" "+ stepper_frames[i].p_xyz);
+                Console.WriteLine("; p: " + stepper_frames[i].p_xyz);
                 coms.Add(stepper_frames[i]);
             }
             return coms.ToArray();
