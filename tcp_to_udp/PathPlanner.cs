@@ -3233,8 +3233,8 @@ namespace tcp_to_udp
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
-                //var l = stepper_frames[i].get_command(printer);
-                //Console.WriteLine("time: "+ l);
+                var l = stepper_frames[i].get_command(printer);
+                Console.WriteLine(""+ l);
                 //Console.WriteLine("p: " + stepper_frames[i].p_xyz);
                 coms.Add(stepper_frames[i]);
             }

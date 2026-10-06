@@ -765,18 +765,18 @@ namespace tcp_to_udp
             printer.bed_calib_vec = printer.bed_calib_vec.normalize();
             printer.comp_delta_table(max_print_r);
 
-           /* prog_orig_commands = new List<string>()
+            prog_orig_commands = new List<string>()
             {
-                "G1 X-8.167473329846224 Y1.5641716535472479 Z121.29295001809481 F600",
-                "G1 X-8.171542320531755 Y1.238418754131698 Z121.31115758289508 F600",
-                "G1 X1.8284576794682454 Y1.238418754131698 Z121.31115758289508 E0.1",
-                "G1 X1.8284576794682454 Y11.238418754131699 Z121.31115758289508 E0.2",
-                "G1 X-8.171542320531755 Y11.238418754131699 Z121.31115758289508 E0.3",
-                "G1 X-8.171542320531755 Y1.238418754131698 Z121.31115758289508 E0.5",
+                "G1 X-28.996218019813778 Y67.18429135365389 Z-364.5370826206767 F600",
+                "G1 X-0.19606700283726042 Y-6.8165616215548965 Z-360.3370826206767 F600",
+                "G1 X-0.19606700283726042 Y3.1834383784451035 Z-360.42008262067674 E0.1",
+                "G1 X9.80393299716274 Y3.1834383784451035 Z-360.4690826206767 E0.2",
+                "G1 X9.80393299716274 Y-6.8165616215548965 Z-360.3860826206767 E0.3",
+                "G1 X-0.19606700283726042 Y-6.8165616215548965 Z-360.3370826206767 E0.5",
             };
 
             var frames_xyz_test_2 = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
-            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, printer, offset_frame).ToList();*/
+            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, ref printer, offset_frame).ToList();
 
             /*prog_orig_commands = new List<string>()
             {
@@ -1031,7 +1031,7 @@ namespace tcp_to_udp
                                         
                                         var com = jog_commands[cur_jog_line].get_command(printer);
                                         _TCPserver1.pushBuffer_in(com + "\n");
-                                        Console.WriteLine("cur_prog_line_board: " + cur_prog_line_board + "; cur_jog_line: " + cur_jog_line+"/"+ jog_commands?.Count+"; "+com);
+                                        //Console.WriteLine("cur_prog_line_board: " + cur_prog_line_board + "; cur_jog_line: " + cur_jog_line+"/"+ jog_commands?.Count+"; "+com);
 
                                         cur_jog_line++;
                                     }
@@ -1053,7 +1053,7 @@ namespace tcp_to_udp
                                                 stop_len = alternately_commands[cur_alternately_line].len;
                                             }
                                             var com = alternately_commands[cur_alternately_line].get_command(printer);
-                                            Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
+                                            Console.WriteLine(main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com+" "+ alternately_commands[cur_alternately_line].p_xyz);
                                             _TCPserver1.pushBuffer_in(com + "\n");
                                             if (alternately_commands[cur_alternately_line].movement && alternately_commands[cur_alternately_line].kinematic) cur_alternately_line_internal++;
                                             if (cur_alternately_line < alternately_commands.Count-1) cur_alternately_line++; //if (cur_alternately_line >= alternately_commands.Count) { prog_state = programm_state.STOP;}
