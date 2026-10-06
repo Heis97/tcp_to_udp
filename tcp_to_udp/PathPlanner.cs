@@ -2570,7 +2570,16 @@ namespace tcp_to_udp
 
             ps.Add(p2);
 
-            
+
+            Console.WriteLine("line_ps_________________");
+            for (int i = 0; i < ps.Count; i++)
+            {
+                //if (!double.IsNormal(ps[i].x) || !double.IsNormal(ps[i].y) || !double.IsNormal(ps[i].z))
+                {
+                    Console.WriteLine(ps[i] + "; p1: " + p1 + "; p2: " + p2);
+                }
+            }
+
 
             return ps.ToArray();
         }
@@ -2632,14 +2641,15 @@ namespace tcp_to_udp
                 
             }
             ps.Add(p2_c);
-            
-            /*for(int i=0; i<ps.Count;i++)
+
+            Console.WriteLine("arc_ps_________________");
+            for(int i=0; i<ps.Count;i++)
             {
-                if (!double.IsNormal(ps[i].x) || !double.IsNormal(ps[i].y) || !double.IsNormal(ps[i].z))
+                //if (!double.IsNormal(ps[i].x) || !double.IsNormal(ps[i].y) || !double.IsNormal(ps[i].z))
                 {
                     Console.WriteLine(ps[i]+"; p1: "+p1+ "; p2: " + p2 + "; p3: " + p3 );
                 }
-            }*/
+            }
             return ps.ToArray();
         }
 
@@ -3123,6 +3133,12 @@ namespace tcp_to_udp
                     if (arc.frms != null)
                     {
                         //Console.WriteLine("arc: " + r_cur);
+
+                        if (last_type_line != StepperLine.LineType.arc)
+                        {
+                            //Console.WriteLine("step_lines[step_lines.Count-1]");
+                            first_p = frames[i - 1].p_xyz;
+                        }
                         var line = new StepperLine(first_p, arc.frms[0].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                         step_lines.Add(line);
                         step_lines.Add(arc);
@@ -3234,7 +3250,7 @@ namespace tcp_to_udp
             {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 var l = stepper_frames[i].get_command(printer);
-                Console.WriteLine(""+ l);
+                Console.WriteLine(""+ l+" "+ stepper_frames[i].p_xyz);
                 //Console.WriteLine("p: " + stepper_frames[i].p_xyz);
                 coms.Add(stepper_frames[i]);
             }
