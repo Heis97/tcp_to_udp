@@ -2446,9 +2446,9 @@ namespace tcp_to_udp
     public class StepperLine
     {
         static public double min_dist_printer = 0.2;
-        static public double min_dist = 0.05;
+        static public double min_dist = 0.1;
 
-        static public double min_time = 4;//ms
+        static public double min_time = 10;//ms
 
         static public double min_count_time = min_time*100;//ms
 
@@ -2847,7 +2847,7 @@ namespace tcp_to_udp
             var dist = (fr1.p_xyz-fr2.p_xyz).magnitude();
             if(dist ==0) dist = Math.Abs (fr1.e - fr2.e);
             if (fr2.vel == 0) return -1;
-            return dist / fr2.vel;
+            return dist / ((fr2.vel+fr1.vel)/2);
         }
         static public StepperFrame[] frame_divide(StepperFrame frame_prev, StepperFrame frame_cur, double min_dist = 0.1)
         {

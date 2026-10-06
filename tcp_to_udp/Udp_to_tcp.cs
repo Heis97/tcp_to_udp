@@ -765,7 +765,7 @@ namespace tcp_to_udp
             printer.bed_calib_vec = printer.bed_calib_vec.normalize();
             printer.comp_delta_table(max_print_r);
 
-            prog_orig_commands = new List<string>()
+            /*prog_orig_commands = new List<string>()
             {
                 "G1 X-28.996218019813778 Y67.18429135365389 Z-364.5370826206767 F600",
                 "G1 X-0.19606700283726042 Y-6.8165616215548965 Z-360.3370826206767 F600",
@@ -776,7 +776,7 @@ namespace tcp_to_udp
             };
 
             var frames_xyz_test_2 = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer);
-            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, ref printer, offset_frame).ToList();
+            prog_commands = StepperFrame.convert_g_code(frames_xyz_test_2, ref printer, offset_frame).ToList();*/
 
             /*prog_orig_commands = new List<string>()
             {
@@ -1384,10 +1384,10 @@ namespace tcp_to_udp
                        // Console.WriteLine(commands1.Count);
                         if (commands1.Count > 0)
                         {
-
+                            Console.WriteLine("mes: " + mes);
                             // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
                             var cur_num_ins = commands1[0].num - count_send1;
-                           // Console.WriteLine("send1 com pre: " + cur_num_board + "/" + cur_num_ins+" "+ count_send1 + " " + commands1[0].com);
+                            Console.WriteLine("send1 com pre: " + cur_num_board + "/" + cur_num_ins+" "+ count_send1 + " " + commands1[0].com);
                            
                             if (!initing1)
                             {
@@ -1404,19 +1404,19 @@ namespace tcp_to_udp
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur); 
                                 udp_client1.Send(mes_out, mes_out.Length);
                                 
-                               // Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
                                 commands1.RemoveAt(0);
 
                                 // count_send1++;
-                                //Console.WriteLine("send1 else if: " + cur_num_board + "/" + cur_num_ins);
+                                Console.WriteLine("send1 else if: " + cur_num_board + "/" + cur_num_ins);
                             }
                             else 
                             {
                                         
-                                //Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
+                                Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
                             }                                
                         }                            
                     }
