@@ -3340,7 +3340,7 @@ namespace tcp_to_udp
                 }
 
                 //var l = stepper_frames[i].get_command(printer);
-                //Console.WriteLine("time: "+ l);
+                //Console.WriteLine(""+ stepper_frames[i].p_xyz);
                 //var fr_stop = new StepperFrame(1, 588, "A0 D0 C0", true);
                 //coms.Add(fr_stop);
             }
@@ -3389,14 +3389,20 @@ namespace tcp_to_udp
             var frames_out = new List<StepperFrame>();
             var frames_kinematic = new List<StepperFrame>();
             int kinematic_count = 0;
-
+            var last_frame = cur_frame.clone();
             Console.WriteLine("offset_alternate: " + offset.p_xyz);
             for (int i=0; i<stepper_frames.Length; i++)
             {
                 if (stepper_frames[i].kinematic)
                 {
-                    if(kinematic_count==0) frames_kinematic.Add(cur_frame.clone());
+                    if (kinematic_count == 0)
+                    {
+                        frames_kinematic.Add(last_frame);
+                    }
+                    
                     frames_kinematic.Add(stepper_frames[i]);
+
+                    last_frame = stepper_frames[i].clone();
                     kinematic_count++;
                 }
                 else
@@ -3407,6 +3413,7 @@ namespace tcp_to_udp
                         var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray(), ref printer);
                         frames_kinematic = new List<StepperFrame>();
                         frames_out.AddRange(frames_kinematic_prep);
+                        kinematic_count = 0;
                     }
                     frames_out.Add(stepper_frames[i]);
 

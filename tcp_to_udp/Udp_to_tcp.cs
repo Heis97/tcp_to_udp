@@ -218,9 +218,15 @@ namespace tcp_to_udp
         int ring_en = 0;
         int lookup_buf = 100;
         int safe_len_send_val = 40;
+
         int prog_done = 0;
         int prog_done_prev = 0;
         bool program_done_flag = false;
+
+        int wait_done = 0;
+        int wait_en = 0;
+        int wait_done_prev = 0;
+        bool wait_done_flag = false;
 
 
         long all_steps_kinem = 0l;
@@ -287,8 +293,9 @@ namespace tcp_to_udp
             program_done_flag = false;
             printer.all_motors_stop1 = true;
             printer.all_motors_stop2 = true;
-
-           // Console.WriteLine()
+            wait_done_flag = true;
+            Console.WriteLine("start_alternate_prog: wait_done_flag = true");
+            // Console.WriteLine()
         }
 
         public void start_main_alternate_prog(StepperFrame[] prog_cur)
@@ -406,7 +413,7 @@ namespace tcp_to_udp
 
             else if (command.Contains("M611"))//jog 
             {
-                if ((prog_state == programm_state.STOP || prog_state == programm_state.PAUSE ) && all_steps_kinem ==0)
+                if ((prog_state == programm_state.STOP || prog_state == programm_state.PAUSE) && all_steps_kinem ==0)
                 {
                     var val = val_from_command(com_board);
                     var jog_orig = new List<StepperFrame>();
@@ -698,7 +705,7 @@ namespace tcp_to_udp
             else if (command.Contains("M635"))//home osc
             {
 
-                var prog_cur = new List<StepperFrame>();
+                /*var prog_cur = new List<StepperFrame>();
 
                 //prog_cur.Add(new StepperFrame(1, 589, "X10"));
                 prog_cur.Add(new StepperFrame(0, 631, ""));
@@ -711,7 +718,31 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 10, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 0, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, 50), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(0, 620, ""));
+                prog_cur.Add(new StepperFrame(0, 620, ""));*/
+
+
+                var prog_cur = new List<StepperFrame>();
+
+                //prog_cur.Add(new StepperFrame(1, 589, "X10"));
+                //prog_cur.Add(new StepperFrame(0, 631, ""));
+
+                //prog_cur.Add(new StepperFrame(0, 637, "1"));
+                //prog_cur.Add(new StepperFrame(0, 638, "-41.8732 67.1863 -394.5207"));
+                //prog_cur.Add(new StepperFrame(0, 632, "1"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -292), 0, 2));
+                prog_cur.Add(new StepperFrame(1, 589, "P500000"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -293.4), 0, 2));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -294.4), 0, 2));
+                prog_cur.Add(new StepperFrame(1, 589, "P500000"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -292), 0, 2));
+                prog_cur.Add(new StepperFrame(1, 589, "P500000"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -293.4), 0, 2));
+                prog_cur.Add(new StepperFrame(1, 589, "P200000"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -292), 0, 2));
+                prog_cur.Add(new StepperFrame(1, 589, "P200000"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -293.4), 0, 2));
+                prog_cur.Add(new StepperFrame(1, 589, "P200000"));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -292.0), 0, 2));
 
                 start_main_alternate_prog(prog_cur.ToArray());
 
@@ -922,30 +953,36 @@ namespace tcp_to_udp
                                 var ring_counter = (long)Convert.ToInt32(vars_from_mes[2]);
                                 var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
 
-                                //cur position-----------------------------------------------------------------
-                                if (cur_send == 1)
-                                {
-                                    var cur_poses = new long[8];
-                                    for (int i = 0; i < 8; i++)
-                                    {
-                                        cur_poses[i] = Convert.ToInt64(vars_from_mes[4 + i]);
-                                    }
-                                   
-
-                                    cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[7] };
-
-                                    cur_frame = printer.solve_fk(cur_pos);
-                                    /**/
-                                }
+                                
 
                                 
                                 if(cur_send == 0)
                                 {
+
                                     ring_en = Convert.ToInt32(vars_from_mes[6]);
+
                                     prog_done = Convert.ToInt32(vars_from_mes[9]);
+
 
                                     if(prog_done-prog_done_prev ==1) program_done_flag = true;
                                     prog_done_prev = prog_done;
+
+
+                                    if(vars_from_mes[4].Length == 2)
+                                    {
+                                        wait_done = Convert.ToInt32(vars_from_mes[4][0]) - 48;
+                                        wait_en = Convert.ToInt32(vars_from_mes[4][1]) - 48;
+
+                                        if (wait_done - wait_done_prev == 1)
+                                        {
+                                            wait_done_flag = true;
+                                            Console.WriteLine(vars_from_mes[4] + "   vars_from_mes[4].Length: wait_done_flag = true");
+                                        }
+                                        wait_done_prev = wait_done;
+                                    }
+                                    
+
+
 
                                     var nossle_calib_vals = vars_from_mes[10];
                                     calibr_x = Convert.ToInt32(nossle_calib_vals[0]) - 48;
@@ -982,6 +1019,21 @@ namespace tcp_to_udp
 
                                 }
                                 var cur_prog_line_board = Convert.ToInt64(vars_from_mes[2]);
+                                //cur position-----------------------------------------------------------------
+                                if (cur_send == 1)
+                                {
+                                    var cur_poses = new long[8];
+                                    for (int i = 0; i < 8; i++)
+                                    {
+                                        cur_poses[i] = Convert.ToInt64(vars_from_mes[4 + i]);
+                                    }
+
+
+                                    cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[7] };
+
+                                    cur_frame = printer.solve_fk(cur_pos);
+                                    /**/
+                                }
 
                                 if (cur_send == 3)
                                 {
@@ -1047,7 +1099,7 @@ namespace tcp_to_udp
                                 if (prog_state == programm_state.ALTERNATELY)
                                 {
                                    
-                                    if (alternately_commands[cur_alternately_line].kinematic && printer.all_motors_stop2)
+                                    if (alternately_commands[cur_alternately_line].kinematic && printer.all_motors_stop2 && wait_en == 0 && commands1.Count == 0 && commands2.Count == 0)
                                     {
                                         //kinematic----------------------------------------------------------------------------
 
@@ -1070,7 +1122,7 @@ namespace tcp_to_udp
                                     else
                                     {
                                         //--------direct--------------------
-                                        if (printer.all_motors_stop1 && printer.all_motors_stop2 && cur_alternately_line_internal == 0)
+                                        if (wait_en==0 && printer.all_motors_stop1 && printer.all_motors_stop2 && cur_alternately_line_internal == 0 && commands1.Count == 0 && commands2.Count == 0)
                                         {
                                             //wait stop steppers
                                             var com = alternately_commands[cur_alternately_line].get_command(printer);
@@ -1080,6 +1132,8 @@ namespace tcp_to_udp
                                             {
                                                 printer.all_motors_stop1 = false;
                                                 printer.all_motors_stop2 = false;
+
+                                                wait_done_flag = false;
                                                 all_steps_time_counter1 = 0;
                                                 all_steps_time_counter2 = 0;
                                                 Console.WriteLine("printer.all_motors_stop1 ");
