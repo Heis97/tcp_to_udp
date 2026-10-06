@@ -214,7 +214,7 @@ namespace tcp_to_udp
             CvInvoke.WaitKey();
         }
 
-        double jog_xyz_vel = 10;
+        double jog_xyz_vel = 100;
         int ring_en = 0;
         int lookup_buf = 100;
         int safe_len_send_val = 40;
@@ -1384,11 +1384,11 @@ namespace tcp_to_udp
                        // Console.WriteLine(commands1.Count);
                         if (commands1.Count > 0)
                         {
-                            Console.WriteLine("mes: " + mes);
+                            
                             // var cur_num_board = (long)Convert.ToInt32(vars_from_mes[1]);
                             var cur_num_ins = commands1[0].num - count_send1;
-                            Console.WriteLine("send1 com pre: " + cur_num_board + "/" + cur_num_ins+" "+ count_send1 + " " + commands1[0].com);
-                           
+                            //Console.WriteLine("send1 com pre: " + cur_num_board + "/" + cur_num_ins+" "+ count_send1 + " " + commands1[0].com);
+                            
                             if (!initing1)
                             {
                                 initing1 = true;
@@ -1403,20 +1403,20 @@ namespace tcp_to_udp
                                 var com_cur = "N" + cur_num_ins + " " + commands1[0].com;
                                 var mes_out = Encoding.ASCII.GetBytes(com_cur); 
                                 udp_client1.Send(mes_out, mes_out.Length);
-                                
-                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur);
+                               
+                                Console.WriteLine("send1 com: " + cur_num_board + "/" + cur_num_ins + " " + com_cur+" "+mes);
                             }
                             else if (cur_num_ins == cur_num_board)
                             {
                                 commands1.RemoveAt(0);
 
                                 // count_send1++;
-                                Console.WriteLine("send1 else if: " + cur_num_board + "/" + cur_num_ins);
+                                //Console.WriteLine("send1 else if: " + cur_num_board + "/" + cur_num_ins);
                             }
                             else 
                             {
                                         
-                                Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
+                                //Console.WriteLine("send1 else: " + cur_num_board + "/" + cur_num_ins);
                             }                                
                         }                            
                     }

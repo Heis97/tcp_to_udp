@@ -1784,6 +1784,18 @@ namespace tcp_to_udp
         static double cos30 = 0.86602540378;
         static double sin30 = 0.5;
 
+        static public double min_dist_printer = 0.2;
+        static public double min_dist = 0.1;
+
+        static public double min_time = 10;//ms
+
+        static public double min_count_time = min_time * 100;//ms
+
+        static public double min_vel = 2.1;
+
+        static public double printer_max_acs = 50;//500
+        static public double printer_max_r = 0.3;
+
         public int cur_prog_number = 0;
         
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
@@ -1798,6 +1810,8 @@ namespace tcp_to_udp
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
         public double b_off = 0;// 0.24; //0  
+
+
 
         /*static double steps_xyz = 80;
         public double R =  141; //150
@@ -2445,17 +2459,7 @@ namespace tcp_to_udp
     }
     public class StepperLine
     {
-        static public double min_dist_printer = 0.2;
-        static public double min_dist = 0.1;
-
-        static public double min_time = 10;//ms
-
-        static public double min_count_time = min_time*100;//ms
-
-        static public double min_vel = 2.1;
-
-        static public double printer_max_acs = 500;
-        static public double printer_max_r = 0.3;
+       
 
         public enum LineType { line, arc };
         public LineType stepType;
@@ -2483,7 +2487,7 @@ namespace tcp_to_udp
             this.p_end = p_end;
             this.e_width1 = e_width1;
             
-            var line = gen_ps_line(p_begin, p_end, min_dist);
+            var line = gen_ps_line(p_begin, p_end, StepperPrinter.min_dist);
             this.frms = comp_frms_line(line);
         }
         public StepperLine(Point3d_GL p_begin, Point3d_GL p_c, Point3d_GL p_end, double vel, double acs, double vel_begin, double vel_end, double e_width1, double e_width2, double r)
@@ -2499,7 +2503,7 @@ namespace tcp_to_udp
             this.e_width1 = e_width1;
             this.e_width2 = e_width2;
             //Console.WriteLine("arc--------------");
-            var arc = gen_ps_arc(p_begin, p_c, p_end, r, min_dist);
+            var arc = gen_ps_arc(p_begin, p_c, p_end, r, StepperPrinter.min_dist);
             if (arc == null) this.frms = null;
             else
             {
@@ -2896,13 +2900,13 @@ namespace tcp_to_udp
         public static StepperFrame[] comp_vel(StepperLine[] lines)
         {
             if (lines.Length == 0) return null;
-            lines[0].vel_begin = StepperLine.min_vel;
+            lines[0].vel_begin = StepperPrinter.min_vel;
             for (int i=1; i<lines.Length; i++)
             {
                 if(lines[i].stepType == StepperLine.LineType.line && lines[i-1].stepType == StepperLine.LineType.line)
                 {
-                    lines[i].vel_begin = StepperLine.min_vel;
-                    lines[i - 1].vel_end = StepperLine.min_vel;
+                    lines[i].vel_begin = StepperPrinter.min_vel;
+                    lines[i - 1].vel_end = StepperPrinter.min_vel;
                 }
 
 
@@ -2921,7 +2925,7 @@ namespace tcp_to_udp
                     }
                 }
             }
-            lines[lines.Length - 1].vel_end = StepperLine.min_vel;
+            lines[lines.Length - 1].vel_end = StepperPrinter.min_vel;
 
             //Console.WriteLine("__________comp_vel__________________"); 
 
@@ -3216,7 +3220,7 @@ namespace tcp_to_udp
             frms = e_to_abs(frms);
             var frms_abs = time_to_abs(frms);
             //smooth extr , PA
-            var filtr_ps = filtr_time(frms.ToArray(), StepperLine.min_time*0.001);
+            var filtr_ps = filtr_time(frms.ToArray(), StepperPrinter.min_time *0.001);
             filtr_ps = e_to_rel(filtr_ps);
             frames_time = time_to_rel(filtr_ps);
             
@@ -3282,8 +3286,8 @@ namespace tcp_to_udp
 
             var stepper_frames = convert_frames_v3(
                 orig_g_code,
-                StepperLine.printer_max_acs,        //acs  mm/s^2
-                StepperLine.printer_max_r);      //max r  mm
+                 StepperPrinter.printer_max_acs,        //acs  mm/s^2
+                 StepperPrinter.printer_max_r);      //max r  mm
 
             if (stepper_frames == null) return null;
             var coms = new List<StepperFrame>();
@@ -3294,9 +3298,9 @@ namespace tcp_to_udp
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
-                var l = stepper_frames[i].get_command(printer);
-                Console.Write(""+ l+" "+ stepper_frames[i].p_xyz);
-                Console.WriteLine("; p: " + stepper_frames[i].p_xyz);
+                //var l = stepper_frames[i].get_command(printer);
+                //Console.Write(""+ l+" "+ stepper_frames[i].p_xyz);
+               // Console.WriteLine("; p: " + stepper_frames[i].p_xyz);
                 coms.Add(stepper_frames[i]);
             }
             return coms.ToArray();
