@@ -138,10 +138,10 @@ namespace tcp_to_udp
     public class TCPserver
     {
         int port; // порт для прослушивания подключений
-        volatile StringBuilder buffer_in = new StringBuilder();
+        public volatile StringBuilder buffer_in = new StringBuilder();
         volatile int len;
         //string buffer_in = "";
-        string buffer_out = "";
+        public string buffer_out = "";
         private static StringBuilder _response;
         private static NetworkStream _stream;
         public bool connected = false;

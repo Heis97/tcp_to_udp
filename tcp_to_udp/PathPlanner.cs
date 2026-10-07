@@ -2394,7 +2394,7 @@ namespace tcp_to_udp
             
             var prog_cur = new List<StepperFrame>();
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P" + take_manip_vert[0] + " L", false, false));
+            prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P" + take_manip_vert[0] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[0] + " L", false));
             prog_cur.Add(cur_frame.clone());
 
@@ -2432,7 +2432,7 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
 
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[3] + " L", false, false));
+            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[3] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P" + take_manip_vert[1] + " L", false));
 
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
@@ -2730,6 +2730,7 @@ namespace tcp_to_udp
 
     public class StepperFrame
     {
+
         public Point3d_GL p_xyz;   //  mm
         public double e;   //  mm
         public double time_abs = 100000;  //  sec
@@ -2742,10 +2743,22 @@ namespace tcp_to_udp
 
         public bool kinematic = true;
         public bool movement = true;
-        public bool wait_this_command = true;
+
         public int len = -1;
         public int prog_number = 0;
         public int line_number = 0;
+
+
+        public int consider_wait_all_steps_kinem = 0;
+        public int consider_all_steps1 = 0;
+        public int consider_all_steps2 =0;
+        public int consider_prog_done =0;
+        public int consider_wait_en = 0;
+        public int consider_wait_term = 0;
+
+        
+
+
         /*public StepperFrame(RobotFrame _frame, double _time)
         {
             frame = _frame;
@@ -2763,25 +2776,63 @@ namespace tcp_to_udp
             com_num = 588;
             kinematic = true;
             movement = true;
+            
         }
 
-        public StepperFrame(int plate_num, int com_num, string body, bool kinematic = false,bool wait = true)
+        public StepperFrame(int plate_num, int com_num, string body, bool kinematic = false, int wait = 1)
         {
             this.plate_num = plate_num;
             this.com_num = com_num;
             this.body = body;
             this.kinematic = kinematic;
             movement = false;
-            wait_this_command = wait;
+
+            if(!kinematic)
+            {
+                if (plate_num == 1) consider_all_steps1 = wait;
+                if (plate_num == 2) consider_all_steps2 = wait;
+            }
+
+            if(com_num == 589 && body.Contains('P'))
+            {
+                consider_wait_en = wait;
+            }
+            
         }
-        
+
+        public StepperFrame(int consider_wait_all_steps_kinem = 0, int consider_all_steps1 = 0, int consider_all_steps2 = 0, int consider_prog_done = 0, int consider_wait_en = 0, int consider_wait_term = 0)
+        {
+            this.plate_num = 0;
+            this.com_num = 701;
+            this.body = "";
+            this.kinematic = false;
+            movement = false;
+
+
+            this.consider_wait_all_steps_kinem = consider_wait_all_steps_kinem;
+            this.consider_all_steps1 = consider_all_steps1;
+            this.consider_all_steps2 = consider_all_steps2;
+            this.consider_prog_done = consider_prog_done;
+            this.consider_wait_en = consider_wait_en;
+            this.consider_wait_term = consider_wait_term;
+        }
+
         public string get_command(StepperPrinter printer)
         {
 
             if(plate_num==0)
             {
-                var com = "main M" + com_num + " " + body;
-                return com;
+                if(com_num == 701)
+                {
+                    var com = "main M" + com_num + " " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term;
+                    return com;
+                }
+                else
+                {
+                    var com = "main M" + com_num + " " + body;
+                    return com;
+                }
+                
             }
 
             if(kinematic && movement)
