@@ -3332,7 +3332,7 @@ namespace tcp_to_udp
                 {
                     orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
                 }
-                //Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
+                Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
             }
 
             var stepper_frames = convert_frames_v3(
@@ -3396,7 +3396,7 @@ namespace tcp_to_udp
                 //coms.Add(fr_stop);
             }
             set_prog_ind(ref stepper_frames, printer.cur_prog_number);
-
+            stepper_frames[stepper_frames.Length - 1].consider_prog_done = 1;
             return coms.ToArray();
         }
         public static void set_prog_ind(ref StepperFrame[] stepper_frames, int ind_prog)

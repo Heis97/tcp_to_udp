@@ -221,7 +221,7 @@ namespace tcp_to_udp
 
 
 
-
+        int ring_buf_en = 0;
         int all_steps_kinem = 0;
         int all_steps1 = 0;        
         int prog_done = 0;
@@ -417,9 +417,9 @@ namespace tcp_to_udp
                 jog_xyz_vel = val;
             }
 
-            else if (command.Contains("M611"))//jog 
+            else if (command.Contains("M611" ) && all_steps_kinem == 0)//jog 
             {
-
+                //Console.WriteLine("all_steps_kinem: " + all_steps_kinem);
                 var val = val_from_command(com_board);
                 var jog_orig = new List<StepperFrame>();
                 var fr_cur = cur_frame.clone();
@@ -710,7 +710,7 @@ namespace tcp_to_udp
             else if (command.Contains("M635"))//home osc
             {
 
-                /*var prog_cur = new List<StepperFrame>();
+                var prog_cur = new List<StepperFrame>();
 
                 //prog_cur.Add(new StepperFrame(1, 589, "X10"));
                 prog_cur.Add(new StepperFrame(0, 631, ""));
@@ -723,10 +723,10 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 10, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 0, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, 50), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(0, 620, ""));*/
+                prog_cur.Add(new StepperFrame(0, 620, ""));
 
 
-                var prog_cur = new List<StepperFrame>();
+                /*var prog_cur = new List<StepperFrame>();
 
                 //prog_cur.Add(new StepperFrame(1, 589, "X10"));
                 //prog_cur.Add(new StepperFrame(0, 631, ""));
@@ -754,7 +754,7 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -293.4), 0, 2));
                 prog_cur.Add(new StepperFrame(1, 589, "P200000"));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -292.0), 0, 2));
-                prog_cur.Add(new StepperFrame(0, 0, 0, 0, 1, 0));
+                prog_cur.Add(new StepperFrame(0, 0, 0, 0, 1, 0));*/
 
                 start_main_alternate_prog(prog_cur.ToArray());
 
@@ -993,9 +993,10 @@ namespace tcp_to_udp
                                     {
                                         wait_en = Convert.ToInt32(vars_from_mes[4][3]) - 48;
                                         all_steps1 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
+                                        all_steps_kinem = Convert.ToInt32(vars_from_mes[4][1]) - 48;
                                     }
 
-
+                                    ring_buf_en = Convert.ToInt32(vars_from_mes[6]);
 
 
                                     var nossle_calib_vals = vars_from_mes[10];
@@ -1078,18 +1079,19 @@ namespace tcp_to_udp
                                         cur_jog_line++;
                                     }
                                 }
-
+                                var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0);
+                                var printer_work =
+                                    (consider_all_steps1 == 1 && all_steps1 == 1) ||
+                                    (consider_all_steps2 == 1 && all_steps2 == 1) ||
+                                    (consider_wait_all_steps_kinem == 1 && all_steps_kinem == 1) ||
+                                    (consider_prog_done == 1 && ring_buf_en == 1) ||
+                                    (consider_wait_en == 1 && wait_en == 1) ||
+                                    (consider_wait_term == 1 && wait_term == 1);
 
                                 if (prog_state == programm_state.ALTERNATELY)
                                 {
-                                    var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0);
-                                    var printer_work =
-                                        (consider_all_steps1 == 1 && all_steps1 == 1) ||
-                                        (consider_all_steps2 == 1 && all_steps2 == 1) ||
-                                        (consider_wait_all_steps_kinem == 1 && all_steps_kinem == 1) ||
-                                        (consider_wait_en == 1 && wait_en == 1) ||
-                                        (consider_wait_term == 1 && wait_term == 1);
-                                    Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + prog_done + " " + wait_en + " " + wait_term);
+                                    
+                                    Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
                                     Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                     if (commands_load && !printer_work)
                                     {
@@ -1190,7 +1192,7 @@ namespace tcp_to_udp
 
 
                                 //------
-                                if (main_alternately_commands_exec && prog_state == programm_state.STOP && main_alternately_commands_counter < main_alternately_commands.Count && !calibrating_nossle)
+                                if (main_alternately_commands_exec && prog_state == programm_state.STOP && commands_load && !printer_work && main_alternately_commands_counter < main_alternately_commands.Count && !calibrating_nossle)
                                 {
                                     // if(all_steps1 == 0 && all_steps2 == 0)
                                     {
@@ -1306,12 +1308,12 @@ namespace tcp_to_udp
                                 //nossle calib_handler-----------------------------------------------------------------
                                 if (calibrating_nossle)
                                 {
-                                    var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0);
-                                    var printer_work = (all_steps1 == 1 || all_steps2 == 1);
+                                    //var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0 && ring_buf_en == 0);
+                                    //var printer_work = (all_steps1 == 1 || all_steps2 == 1);
 
                                     if(commands_load && !printer_work)
                                     { //----CALIBR_X------------------------------------------------------------------------------------
-                                        if (calibrate_nossle_stage_counter == 1)
+                                        if (calibrate_nossle_stage_counter == 1  && prog_state == programm_state.STOP)
                                         {
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "A1", false));
@@ -1337,7 +1339,7 @@ namespace tcp_to_udp
                                         }
 
 
-                                        if (calibrate_nossle_stage_counter == 3)// &&prog_state == programm_state.STOP && prog_done == 1
+                                        if (calibrate_nossle_stage_counter == 3 && prog_state == programm_state.STOP)// &&prog_state == programm_state.STOP && prog_done == 1
                                         {
                                             //calibrate_nossle_frames.Add(cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
@@ -1366,7 +1368,7 @@ namespace tcp_to_udp
 
                                         //----CALIBR_Y------------------------------------------------------------------------------------
 
-                                        if (calibrate_nossle_stage_counter == 5)
+                                        if (calibrate_nossle_stage_counter == 5 && prog_state == programm_state.STOP)
                                         {
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "B1", false));
@@ -1391,7 +1393,7 @@ namespace tcp_to_udp
                                         }
 
 
-                                        if (calibrate_nossle_stage_counter == 7)
+                                        if (calibrate_nossle_stage_counter == 7 && prog_state == programm_state.STOP)
                                         {
                                             //calibrate_nossle_frames.Add(cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
@@ -1424,7 +1426,7 @@ namespace tcp_to_udp
 
                                         //----CALIBR_Z------------------------------------------------------------------------------------
 
-                                        if (calibrate_nossle_stage_counter == 9)
+                                        if (calibrate_nossle_stage_counter == 9 && prog_state == programm_state.STOP)
                                         {
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "C1", false));
@@ -1554,7 +1556,11 @@ namespace tcp_to_udp
                                 {
 
                                     var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
-
+                                    if (vars_from_mes[4].Length == 5)
+                                    {
+                                        wait_term = Convert.ToInt32(vars_from_mes[4][4]) - 48;
+                                        all_steps2 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
+                                    }
 
                                 }
                                 //catch
