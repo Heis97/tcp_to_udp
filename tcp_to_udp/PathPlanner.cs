@@ -2386,8 +2386,52 @@ namespace tcp_to_udp
             return new Point3d_GL[] { abc_fitting, p_cur_xyz };
         }
 
+        static public StepperFrame[] gen_change_prog(int val, SettingsString settins_string, StepperFrame cur_frame)
+        {
+            StepperFrame[] prog_cur = null;
 
+            switch (val)
+            {
+                case 0:
+                    prog_cur = gen_take_prog(cur_frame, 10d, 4, 3,   //set take change left
+                settins_string.take_left_manip_vert,
+                settins_string.take_left_manip_rot,
+                settins_string.take_left_manip_x,
+                settins_string.take_left_manip_y,
+                settins_string.take_left_manip_z
+                ); break;
 
+                case 1:
+                    prog_cur = gen_give_prog(cur_frame, 10d, 4, 3,   //set give change left
+                settins_string.take_left_manip_vert,
+                settins_string.take_left_manip_rot,
+                settins_string.take_left_manip_x,
+                settins_string.take_left_manip_y,
+                settins_string.take_left_manip_z
+                ); break;
+
+                case 2:
+                    prog_cur = gen_take_prog(cur_frame, 10d, 6, 5,    //set take change right
+                settins_string.take_right_manip_vert,
+                settins_string.take_right_manip_rot,
+                settins_string.take_right_manip_x,
+                settins_string.take_right_manip_y,
+                settins_string.take_right_manip_z
+                ); break;
+
+                case 3:
+                    prog_cur = gen_give_prog(cur_frame, 10d, 6, 5,    //set give change right
+                settins_string.take_right_manip_vert,
+                settins_string.take_right_manip_rot,
+                settins_string.take_right_manip_x,
+                settins_string.take_right_manip_y,
+                settins_string.take_right_manip_z
+                ); break;
+            }
+
+            return prog_cur;
+        }
+        
 
         static public StepperFrame[] gen_take_prog(StepperFrame cur_frame, double vel_change, int rot_ind, int vert_ind, int[] take_manip_vert, int[] take_manip_rot, double[] take_manip_x, double[] take_manip_y, double[] take_manip_z)
         {

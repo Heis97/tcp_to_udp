@@ -267,6 +267,8 @@ namespace tcp_to_udp
         int cur_nossle_type = 0;
         int cur_plate_type = 0;
 
+        int tool_active = 0;
+
         public void comp_offset()
         {
             if(auto_calibr)
@@ -561,72 +563,106 @@ namespace tcp_to_udp
             }
 
 
-            else if (command.Contains("M619"))//set take change left
+            else if (command.Contains("M619"))
             {
+                var val = val_from_command(com_board);
+
+
                 //i3 vert, i4 rot, 
                 offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
                 auto_calibr = false;
-                var prog_cur = StepperPrinter.gen_take_prog(cur_frame, 10d, 4, 3,
-                    settins_string.take_left_manip_vert,
-                    settins_string.take_left_manip_rot,
-                    settins_string.take_left_manip_x,
-                    settins_string.take_left_manip_y,
-                    settins_string.take_left_manip_z
-                    );
-
-                start_alternate_prog(prog_cur);
-
-
+                StepperFrame[] prog_cur = null;
+                prog_cur = StepperPrinter.gen_change_prog(val, settins_string, cur_frame.clone());
+                
+                if(prog_cur!=null)  start_alternate_prog(prog_cur);
             }
 
-            else if (command.Contains("M620"))//set give change left
+            else if (command.Contains("M620")) // take i tool
             {
-                //i3 vert, i4 rot, 
-                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
-                auto_calibr = false;
-                var prog_cur = StepperPrinter.gen_give_prog(cur_frame, 10d, 4, 3,
-                    settins_string.take_left_manip_vert,
-                    settins_string.take_left_manip_rot,
-                    settins_string.take_left_manip_x,
-                    settins_string.take_left_manip_y,
-                    settins_string.take_left_manip_z
-                    );
+                var prog_cur = new List<StepperFrame>();
 
-                start_alternate_prog(prog_cur);
+                var val = val_from_command(com_board);
+                var tool_dest = val;
+                
+                var manip1 = tool_inds[0];
+                var manip2 = tool_inds[1];
+
+                var last_frame = cur_frame.clone();
+
+                if (manip1 != tool_dest && manip2 != tool_dest && tool_active != tool_dest) Console.WriteLine("Вставте экструдер: " + tool_dest);
+                if (tool_active != 0)
+                {
+                    int prog_num_give = -1;
+                    if (manip1 == 0)
+                    {
+                        prog_num_give = 3;
+                    }
+                    if (manip2 == 0)
+                    {
+                        prog_num_give = 1;
+                    }
+                    if(prog_num_give<=0)
+                    {
+                        Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор правый: " + manip1 + "; Манипулятор левый: " + manip2);
+                    }
+                    else
+                    {
+                        prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, settins_string, last_frame.clone()));
+                        last_frame = prog_cur[prog_cur.Count - 1];
+                    }
+                }
+
+                int prog_num_take = -1;
+                if(manip1 == tool_dest)
+                {
+                    prog_num_take = 2;
+                }
+                if (manip2 == tool_dest)
+                {
+                    prog_num_take = 0;
+                }
+
+                prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, settins_string, last_frame.clone()));
+
+                if (prog_cur != null)
+                {
+                    tool_active = tool_dest;
+                    start_alternate_prog(prog_cur.ToArray());
+                }
+                
             }
 
-            else if (command.Contains("M621"))//set take change right
+            else if (command.Contains("M621")) //drop active tool
             {
-                //i5 vert, i6 rot, 
-                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
-                auto_calibr = false;
-                var prog_cur = StepperPrinter.gen_take_prog(cur_frame, 10d, 6, 5,
-                    settins_string.take_right_manip_vert,
-                    settins_string.take_right_manip_rot,
-                    settins_string.take_right_manip_x,
-                    settins_string.take_right_manip_y,
-                    settins_string.take_right_manip_z
-                    );
-
-                start_alternate_prog(prog_cur);
-
-
+                var prog_cur = new List<StepperFrame>();
+                var last_frame = cur_frame.clone();
+                int prog_num_give = -1;
+                var manip1 = tool_inds[0];
+                var manip2 = tool_inds[1];
+                if (manip1 == 0)
+                {
+                    prog_num_give = 3;
+                }
+                if (manip2 == 0)
+                {
+                    prog_num_give = 1;
+                }
+                if (prog_num_give <= 0)
+                {
+                    Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор правый: " + manip1 + "; Манипулятор левый: " + manip2);
+                }
+                else
+                {
+                    prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, settins_string, last_frame.clone()));
+                    if (prog_cur != null) start_alternate_prog(prog_cur.ToArray());
+                }
             }
 
-            else if (command.Contains("M622"))//set give change right
+            else if (command.Contains("M622"))
             {
-                //i5 vert, i6 rot, 
-                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
-                auto_calibr = false;
-                var prog_cur = StepperPrinter.gen_give_prog(cur_frame, 10d, 6, 5,
-                    settins_string.take_right_manip_vert,
-                    settins_string.take_right_manip_rot,
-                    settins_string.take_right_manip_x,
-                    settins_string.take_right_manip_y,
-                    settins_string.take_right_manip_z
-                    );
 
-                start_alternate_prog(prog_cur);
+
+
             }
 
             else if (command.Contains("M623"))//set bring tablet
@@ -973,7 +1009,9 @@ namespace tcp_to_udp
                             var frame_out = cur_frame.p_xyz.Clone();
                             frame_out.z -= printer.comp_off_bed(frame_out);
                             frame_out -= offset_frame.p_xyz;
-                            _TCPserver1.pushBuffer(mes + " " + frame_out.ToString() + "\n");
+                            var tools = "00000";
+                            if (tool_inds.Length == 4) tools = tool_inds[0] + " " + tool_inds[1] + " " + tool_inds[2] + " " + tool_inds[3] + " " + tool_active;
+                            _TCPserver1.pushBuffer(mes + " " + frame_out.ToString() +" "+ tools + "\n");
                         }
                         //Console.WriteLine(mes);
                         // Console.WriteLine("len1: " + coms1.Count);
@@ -1037,6 +1075,8 @@ namespace tcp_to_udp
 
                                         if (tool2_0 == 0) tool_inds[2] = 1;
                                         if (tool3_0 == 0) tool_inds[3] = 1;
+
+
                                     }
 
                                 }
@@ -1111,7 +1151,7 @@ namespace tcp_to_udp
                                             if (printer_ready_kinem || !alternately_commands[cur_alternately_line].kinematic)
                                             {
                                                 var com = alternately_commands[cur_alternately_line].get_command(printer);
-                                                Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
+                                                //Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
                                                 //_TCPserver1.pushBuffer_in(com + "\n");
 
                                                 load_commands(new string[] { com });
@@ -1126,21 +1166,21 @@ namespace tcp_to_udp
                                                 //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                                 cur_alternately_line++;
 
-                                                if(consider_prog_done==1)
+                                                /*if(consider_prog_done==1)
                                                 {
                                                     Console.WriteLine("set onsider_prog_done==1");
                                                 }
                                                 else
                                                 {
                                                     Console.WriteLine("set onsider_prog_done==0");
-                                                }
+                                                }*/
                                             }
                                         }
                                         else
                                         {
-                                            Console.WriteLine("consider_prog_done == 1 && ring_buf_en == 1 " + (consider_prog_done == 1 && ring_buf_en == 1));
+                                            /*Console.WriteLine("consider_prog_done == 1 && ring_buf_en == 1 " + (consider_prog_done == 1 && ring_buf_en == 1));
                                             Console.WriteLine("printer_work: " + printer_work);
-                                            Console.WriteLine("STOP; ring_buf_en:" + ring_buf_en+" "+ alternately_commands[cur_alternately_line-1].consider_prog_done+" "+(cur_alternately_line - 1));
+                                            Console.WriteLine("STOP; ring_buf_en:" + ring_buf_en+" "+ alternately_commands[cur_alternately_line-1].consider_prog_done+" "+(cur_alternately_line - 1));*/
                                             prog_state = programm_state.STOP;
                                         }
                                     }
@@ -1934,7 +1974,7 @@ namespace tcp_to_udp
 
     }
 
-    class SettingsString
+    public class SettingsString
     {
         //планировщик
         public double max_acs;
