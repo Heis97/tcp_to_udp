@@ -595,11 +595,11 @@ namespace tcp_to_udp
                     int prog_num_give = -1;
                     if (manip_left == 0)
                     {
-                        prog_num_give = 3;
+                        prog_num_give = 1;
                     }
                     if (manip_right == 0)
                     {
-                        prog_num_give = 1;
+                        prog_num_give = 3;
                     }
                     if(prog_num_give<=0)
                     {
