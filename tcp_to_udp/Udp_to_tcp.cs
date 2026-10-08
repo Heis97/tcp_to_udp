@@ -1111,7 +1111,7 @@ namespace tcp_to_udp
                                             if (printer_ready_kinem || !alternately_commands[cur_alternately_line].kinematic)
                                             {
                                                 var com = alternately_commands[cur_alternately_line].get_command(printer);
-                                                //Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
+                                                Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
                                                 //_TCPserver1.pushBuffer_in(com + "\n");
 
                                                 load_commands(new string[] { com });
@@ -1122,12 +1122,25 @@ namespace tcp_to_udp
                                                 consider_wait_all_steps_kinem = alternately_commands[cur_alternately_line].consider_wait_all_steps_kinem;
                                                 consider_wait_en = alternately_commands[cur_alternately_line].consider_wait_en;
                                                 consider_wait_term = alternately_commands[cur_alternately_line].consider_wait_term;
+                                                consider_prog_done = alternately_commands[cur_alternately_line].consider_prog_done;
                                                 //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                                 cur_alternately_line++;
+
+                                                if(consider_prog_done==1)
+                                                {
+                                                    Console.WriteLine("set onsider_prog_done==1");
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine("set onsider_prog_done==0");
+                                                }
                                             }
                                         }
                                         else
                                         {
+                                            Console.WriteLine("consider_prog_done == 1 && ring_buf_en == 1 " + (consider_prog_done == 1 && ring_buf_en == 1));
+                                            Console.WriteLine("printer_work: " + printer_work);
+                                            Console.WriteLine("STOP; ring_buf_en:" + ring_buf_en+" "+ alternately_commands[cur_alternately_line-1].consider_prog_done+" "+(cur_alternately_line - 1));
                                             prog_state = programm_state.STOP;
                                         }
                                     }
