@@ -584,26 +584,26 @@ namespace tcp_to_udp
                 var val = val_from_command(com_board);
                 var tool_dest = val;
                 
-                var manip1 = tool_inds[0];
-                var manip2 = tool_inds[1];
+                var manip_left = tool_inds[0];
+                var manip_right = tool_inds[1];
 
                 var last_frame = cur_frame.clone();
 
-                if (manip1 != tool_dest && manip2 != tool_dest && tool_active != tool_dest) Console.WriteLine("Вставте экструдер: " + tool_dest);
+                if (manip_left != tool_dest && manip_right != tool_dest && tool_active != tool_dest) Console.WriteLine("Вставте экструдер: " + tool_dest);
                 if (tool_active != 0)
                 {
                     int prog_num_give = -1;
-                    if (manip1 == 0)
+                    if (manip_left == 0)
                     {
                         prog_num_give = 3;
                     }
-                    if (manip2 == 0)
+                    if (manip_right == 0)
                     {
                         prog_num_give = 1;
                     }
                     if(prog_num_give<=0)
                     {
-                        Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор правый: " + manip1 + "; Манипулятор левый: " + manip2);
+                        Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
                     }
                     else
                     {
@@ -613,13 +613,13 @@ namespace tcp_to_udp
                 }
 
                 int prog_num_take = -1;
-                if(manip1 == tool_dest)
-                {
-                    prog_num_take = 2;
-                }
-                if (manip2 == tool_dest)
+                if(manip_left == tool_dest)
                 {
                     prog_num_take = 0;
+                }
+                if (manip_right == tool_dest)
+                {
+                    prog_num_take = 2;
                 }
 
                 prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, settins_string, last_frame.clone()));
@@ -637,19 +637,19 @@ namespace tcp_to_udp
                 var prog_cur = new List<StepperFrame>();
                 var last_frame = cur_frame.clone();
                 int prog_num_give = -1;
-                var manip1 = tool_inds[0];
-                var manip2 = tool_inds[1];
-                if (manip1 == 0)
-                {
-                    prog_num_give = 3;
-                }
-                if (manip2 == 0)
+                var manip_left = tool_inds[0];
+                var manip_right = tool_inds[1];
+                if (manip_left == 0)
                 {
                     prog_num_give = 1;
                 }
+                if (manip_right == 0)
+                {
+                    prog_num_give = 3;
+                }
                 if (prog_num_give <= 0)
                 {
-                    Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор правый: " + manip1 + "; Манипулятор левый: " + manip2);
+                    Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
                 }
                 else
                 {
@@ -696,20 +696,20 @@ namespace tcp_to_udp
             {
 
                 var prog_cur = new List<StepperFrame>();
-                prog_cur.Add(new StepperFrame(2, 587, "I3 S100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I4 S100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I5 S100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I6 S100 L", false));
+                prog_cur.Add(new StepperFrame(2, 587, "I3 S50 L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I4 S50 L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I5 S50 L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I6 S50 L", false));
 
                 prog_cur.Add(new StepperFrame(2, 587, "I3 H", false, 0));
                 prog_cur.Add(new StepperFrame(2, 587, "I4 H", false, 0));
                 prog_cur.Add(new StepperFrame(2, 587, "I5 H", false, 0));
                 prog_cur.Add(new StepperFrame(2, 587, "I6 H", false));
 
-                prog_cur.Add(new StepperFrame(2, 587, "I3 S100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I4 S100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I5 S100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I6 S100 L", false));
+                prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[4] + " L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I3 P100 L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I6 P" + settins_string.take_right_manip_rot[4] + " L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I5 P100 L", false));
 
                 start_alternate_prog(prog_cur.ToArray());
 
@@ -754,20 +754,20 @@ namespace tcp_to_udp
             {
 
                 var prog_cur = new List<StepperFrame>();
-                prog_cur.Add(new StepperFrame(1, 587, "I3 S100 L", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I4 S100 L", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I5 S100 L", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I6 S100 L", false));
+                prog_cur.Add(new StepperFrame(1, 587, "I3 S50 L", false,0));
+                prog_cur.Add(new StepperFrame(1, 587, "I4 S50 L", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I5 S50 L", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I6 S50 L", false));
 
-                prog_cur.Add(new StepperFrame(1, 587, "I3 H", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I4 H", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I5 H", false));
+                prog_cur.Add(new StepperFrame(1, 587, "I3 H", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I4 H", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I5 H", false, 0));
                 prog_cur.Add(new StepperFrame(1, 587, "I6 H", false));
 
-                prog_cur.Add(new StepperFrame(1, 587, "I3 S100 L", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I4 S100 L", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I5 S100 L", false));
-                prog_cur.Add(new StepperFrame(1, 587, "I6 S100 L", false));
+                prog_cur.Add(new StepperFrame(1, 587, "I3 P-50 L", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I4 P"+settins_string.osc_rot_start_pos1+" L", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I5 P-50 L", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I6 P"+settins_string.osc_rot_start_pos2+" L", false));
 
                 start_alternate_prog(prog_cur.ToArray());
 
@@ -789,7 +789,7 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 10, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(10, 0, 50), 0, jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, 50), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(0, 620, ""));
+                prog_cur.Add(new StepperFrame(0, 619, "1"));
 
 
                 /*var prog_cur = new List<StepperFrame>();
@@ -848,7 +848,12 @@ namespace tcp_to_udp
                 offset_nossle.p_xyz = new Point3d_GL(val[0], val[1], val[2]);
 
             }
+            else if (command.Contains("M639"))
+            {
+                var val = val_from_command(com_board);
+                tool_active = val;
 
+            }
 
             else if (command.Contains("M700"))//set all stop
             {
@@ -1027,19 +1032,21 @@ namespace tcp_to_udp
                                 var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
 
 
+                                if (vars_from_mes[4].Length == 5)
+                                {
+                                    wait_en = Convert.ToInt32(vars_from_mes[4][3]) - 48;
+                                    all_steps1 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
+                                    all_steps_kinem = Convert.ToInt32(vars_from_mes[4][1]) - 48;
 
+                                    //Console.WriteLine("1:" + vars_from_mes[4]);
+                                }
 
                                 if (cur_send == 0)
                                 {
 
-                                    ring_en = Convert.ToInt32(vars_from_mes[6]);
+                                    //ring_en = Convert.ToInt32(vars_from_mes[6]);
 
-                                    if (vars_from_mes[4].Length == 5)
-                                    {
-                                        wait_en = Convert.ToInt32(vars_from_mes[4][3]) - 48;
-                                        all_steps1 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
-                                        all_steps_kinem = Convert.ToInt32(vars_from_mes[4][1]) - 48;
-                                    }
+                                    
 
                                     ring_buf_en = Convert.ToInt32(vars_from_mes[6]);
 
@@ -1087,7 +1094,7 @@ namespace tcp_to_udp
                                     var cur_poses = new long[8];
                                     for (int i = 0; i < 8; i++)
                                     {
-                                        cur_poses[i] = Convert.ToInt64(vars_from_mes[4 + i]);
+                                        cur_poses[i] = Convert.ToInt64(vars_from_mes[5 + i]);
                                     }
 
 
@@ -1151,8 +1158,10 @@ namespace tcp_to_udp
                                             if (printer_ready_kinem || !alternately_commands[cur_alternately_line].kinematic)
                                             {
                                                 var com = alternately_commands[cur_alternately_line].get_command(printer);
-                                                //Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
-                                                //_TCPserver1.pushBuffer_in(com + "\n");
+                                                Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
+                                                Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
+                                                Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
+
 
                                                 load_commands(new string[] { com });
 
@@ -1166,14 +1175,14 @@ namespace tcp_to_udp
                                                 //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                                 cur_alternately_line++;
 
-                                                /*if(consider_prog_done==1)
+                                                if(consider_prog_done==1)
                                                 {
                                                     Console.WriteLine("set onsider_prog_done==1");
                                                 }
                                                 else
                                                 {
                                                     Console.WriteLine("set onsider_prog_done==0");
-                                                }*/
+                                                }
                                             }
                                         }
                                         else
@@ -1256,7 +1265,6 @@ namespace tcp_to_udp
                                 //------
                                 if (main_alternately_commands_exec && prog_state == programm_state.STOP && commands_load && !printer_work && main_alternately_commands_counter < main_alternately_commands.Count && !calibrating_nossle)
                                 {
-                                    // if(all_steps1 == 0 && all_steps2 == 0)
                                     {
                                         if (main_alternately_commands[main_alternately_commands_counter][0].plate_num == 0)
                                         {
@@ -1620,9 +1628,12 @@ namespace tcp_to_udp
                                     var cur_send = (long)Convert.ToInt32(vars_from_mes[3]);
                                     if (vars_from_mes[4].Length == 5)
                                     {
+                                        //Console.WriteLine("2:" + vars_from_mes[4]);
+                                        //wait_term = Convert.ToInt32(vars_from_mes[4][3]) - 48;
                                         wait_term = Convert.ToInt32(vars_from_mes[4][4]) - 48;
                                         all_steps2 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
                                     }
+                                    
 
                                 }
                                 //catch
@@ -1713,6 +1724,7 @@ namespace tcp_to_udp
 
             for (int i = 0; i<settins_string.motors_count1;i++)
             {
+                
                 _TCPserver1.pushBuffer_in("num1 M587" + 
                     " I" + i + 
                     " A" + Math.Round(settins_string.a_max1[i],3) +
@@ -1740,7 +1752,7 @@ namespace tcp_to_udp
             }
 
 
-
+            _TCPserver1.pushBuffer_in("num1 M581 I2 A0");
             save_obj("settings_printer.json", settins_string);
 
         }
@@ -2046,7 +2058,10 @@ namespace tcp_to_udp
         public int servo_open_val = 0;
         public int servo_close_val = 0;
 
-        
+        public int osc_rot_start_pos1 = 0;
+        public int osc_rot_start_pos2 = 0;
+
+
 
         public SettingsString()
         {

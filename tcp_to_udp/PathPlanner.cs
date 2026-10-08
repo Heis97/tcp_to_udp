@@ -2437,7 +2437,7 @@ namespace tcp_to_udp
         {
             
             var prog_cur = new List<StepperFrame>();
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
+            //prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P" + take_manip_vert[0] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[0] + " L", false));
             prog_cur.Add(cur_frame.clone());
@@ -2462,8 +2462,9 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[5], take_manip_y[5], take_manip_z[5]), 0, vel_change));
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
 
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P100 L", false));
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P100 L", false));
+
+            prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P" + take_manip_rot[4] + " L", false));
+            prog_cur.Add(new StepperFrame(2, 587, "I" + vert_ind + " P" + take_manip_vert[1] + " L", false));
             return prog_cur.ToArray();
         }
 
@@ -2474,7 +2475,7 @@ namespace tcp_to_udp
             var prog_cur = new List<StepperFrame>();
             prog_cur.Add(cur_frame.clone());
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
+            //prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
 
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[3] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P" + take_manip_vert[1] + " L", false));
@@ -2494,8 +2495,9 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[2], take_manip_y[2], take_manip_z[2]), 0, vel_change));
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[1], take_manip_y[1], take_manip_z[1]), 0, vel_change));
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]), 0, vel_change));
-            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P100 L", false));
-            prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P100 L", false));//without double not work
+            prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[4] + " L", false));
+            prog_cur.Add(new StepperFrame(2, 587, "I" + vert_ind + " P" + take_manip_vert[1] + " L", false));
+            //prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P100 L", false));//without double not work
             return prog_cur.ToArray();
         }
 
