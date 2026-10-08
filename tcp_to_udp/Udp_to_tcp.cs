@@ -1010,7 +1010,7 @@ namespace tcp_to_udp
                             frame_out.z -= printer.comp_off_bed(frame_out);
                             frame_out -= offset_frame.p_xyz;
                             var tools = "00000";
-                            if (tool_inds.Length == 4) tools = tool_inds[0] + " " + tool_inds[1] + " " + tool_inds[2] + " " + tool_inds[3] + " " + tool_active;
+                            if (tool_inds.Length == 4) tools = tool_inds[0] + "" + tool_inds[1] + "" + tool_inds[2] + "" + tool_inds[3] + "" + tool_active;
                             _TCPserver1.pushBuffer(mes + " " + frame_out.ToString() +" "+ tools + "\n");
                         }
                         //Console.WriteLine(mes);
