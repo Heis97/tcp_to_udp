@@ -311,6 +311,36 @@ namespace tcp_to_udp
             
         }
 
+
+        public void load_commands(string[] coms)
+        {
+            foreach (var command in coms)
+            {
+                //Console.WriteLine("command: " + command);
+                if (command.Length > 3)
+                {
+                    if (command.Contains("num1"))
+                    {
+                        //Console.WriteLine("add com1: " + command);
+                        var com_board = command.Replace("num1", "").Trim();
+                        commands1.Add(new Command(command_counter1, com_board));
+                        command_counter1++;
+                    }
+                    else if (command.Contains("num2"))
+                    {
+                        //Console.WriteLine("add com2: " + command);
+                        var com_board = command.Replace("num2", "").Trim();
+                        commands2.Add(new Command(command_counter2, com_board));
+                        command_counter2++;
+                    }
+                    else if (command.Contains("main"))
+                    {
+                        exec_main_prog(command);
+                    }
+                }
+            }
+        }
+
         public void exec_main_prog(string command)
         {
 
@@ -883,31 +913,8 @@ namespace tcp_to_udp
                         data = data.Replace('\r', ' ');
                         var coms = data.Trim().Split('\n');
                         //Console.WriteLine("data: " + data);
-                        foreach (var command in coms)
-                        {
-                            //Console.WriteLine("command: " + command);
-                            if (command.Length > 3)
-                            {
-                                if (command.Contains("num1"))
-                                {
-                                    //Console.WriteLine("add com1: " + command);
-                                    var com_board = command.Replace("num1", "").Trim();
-                                    commands1.Add(new Command(command_counter1, com_board));
-                                    command_counter1++;
-                                }
-                                else if (command.Contains("num2"))
-                                {
-                                    //Console.WriteLine("add com2: " + command);
-                                    var com_board = command.Replace("num2", "").Trim();
-                                    commands2.Add(new Command(command_counter2, com_board));
-                                    command_counter2++;
-                                }
-                                else if (command.Contains("main"))
-                                {
-                                    exec_main_prog(command);
-                                }
-                            }
-                        }
+                        load_commands(coms);
+
                     }
                 }
                 else
@@ -1091,8 +1098,8 @@ namespace tcp_to_udp
                                 if (prog_state == programm_state.ALTERNATELY)
                                 {
                                     
-                                    Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
-                                    Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
+                                    //Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
+                                    //Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                     if (commands_load && !printer_work)
                                     {
                                         if (cur_alternately_line < alternately_commands.Count)
@@ -1104,8 +1111,10 @@ namespace tcp_to_udp
                                             if (printer_ready_kinem || !alternately_commands[cur_alternately_line].kinematic)
                                             {
                                                 var com = alternately_commands[cur_alternately_line].get_command(printer);
-                                                Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
-                                                _TCPserver1.pushBuffer_in(com + "\n");
+                                                //Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
+                                                //_TCPserver1.pushBuffer_in(com + "\n");
+
+                                                load_commands(new string[] { com });
 
                                                 
                                                 consider_all_steps1 = alternately_commands[cur_alternately_line].consider_all_steps1;
@@ -1113,7 +1122,7 @@ namespace tcp_to_udp
                                                 consider_wait_all_steps_kinem = alternately_commands[cur_alternately_line].consider_wait_all_steps_kinem;
                                                 consider_wait_en = alternately_commands[cur_alternately_line].consider_wait_en;
                                                 consider_wait_term = alternately_commands[cur_alternately_line].consider_wait_term;
-                                                Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
+                                                //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                                 cur_alternately_line++;
                                             }
                                         }
