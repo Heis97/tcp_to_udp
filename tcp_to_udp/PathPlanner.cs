@@ -1779,6 +1779,8 @@ namespace tcp_to_udp
     }
     public class StepperPrinter
     {
+        static public int prog_loaded_bef_start = 4;
+        static public double min_temp_bed = 25;
         public double abs_pos_extr = 0;
         
         static double cos30 = 0.86602540378;
@@ -1793,7 +1795,7 @@ namespace tcp_to_udp
 
         static public double min_vel = 2.1;
 
-        static public double printer_max_acs = 50;//500
+
         static public double printer_max_r = 0.3;
 
         public int cur_prog_number = 0;
@@ -1803,24 +1805,26 @@ namespace tcp_to_udp
         public double t_coef = 104616.18;
 
 
-        static double steps_xyz = 800;//800
-        public double R = 176.5;// 141; //150
-        public double r = 47.5;//34;  //40
-        public double l = 320;//218;  //215
-        public double printing_r = 100;
-        public double a_off = 0;// 0.3; //0
-        public double b_off = 0;// 0.24; //0  
+        /* static double steps_xyz = 800;//800
+         public double R = 176.5;// 141; //150
+         public double r = 47.5;//34;  //40
+         public double l = 320;//218;  //215
+         public double printing_r = 100;
+         public double a_off = 0;// 0.3; //0
+         public double b_off = 0;// 0.24; //0 
+        static public double printer_max_acs = 50;//500
+         */
 
 
 
-        /*static double steps_xyz = 80;
+        static double steps_xyz = 80;
         public double R =  141; //150
         public double r = 34;  //40
         public double l = 218;  //215
         public double printing_r = 100;
         public double a_off =  0.3; //0
-        public double b_off =  0.24; //0*/
-
+        public double b_off =  0.24; //0
+        static public double printer_max_acs = 50;//500
 
         public bool all_motors_stop1 = false;
         public bool all_motors_stop2 = true;
@@ -2850,7 +2854,10 @@ namespace tcp_to_udp
             {
                 consider_wait_en = wait;
             }
-            
+            if (com_num == 579)
+            {
+                consider_wait_term = wait;
+            }
         }
 
         public StepperFrame(int consider_wait_all_steps_kinem = 0, int consider_all_steps1 = 0, int consider_all_steps2 = 0, int consider_prog_done = 0, int consider_wait_en = 0, int consider_wait_term = 0)
@@ -2875,7 +2882,7 @@ namespace tcp_to_udp
 
             if(plate_num==0)
             {
-                if(com_num == 701)
+                if (com_num == 701)
                 {
                     var com = "main M" + com_num + " " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term;
                     return com;
@@ -3445,7 +3452,7 @@ namespace tcp_to_udp
             coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             var stop_len = comp_stop_len(stepper_frames);
 
-            int i_start = Math.Min(10, stop_len - 1);
+            int i_start = Math.Min(StepperPrinter.prog_loaded_bef_start, stop_len - 1);
             for (int i = 0; i < stop_len; i++)
             {
 
@@ -3552,17 +3559,30 @@ namespace tcp_to_udp
         public static StepperFrame[] convert_g_code_to_stepperframes(string[] orig_g_code, StepperPrinter printer)
         {
             var coms = new List<StepperFrame>();
+
+            var p_offs = new Point3d_GL(0, 0, 0);
+            var e_offs = 0d;
+
+
             var p_cur = new Point3d_GL(0, 0, 0);
             var e_cur = 0d;
             var vel_cur = 10d;
             var k_vel = 1d / 60d;//if mm\min
+
+            bool extr_rel = false;
+            bool pos_rel = false;
+
+            var p_abs = new Point3d_GL(0,0, 0);
+            var e_abs = 0d;
             for(int i = 0; i < orig_g_code.Length; i++)
             {
                 var line = orig_g_code[i].Trim();
                 line = line.Replace("  "," ");
                 line = line.Replace("  ", " ");
                 var vals = line.Split(' ');
-                if (vals.Length<2) continue;
+                //if (vals.Length<2) continue;
+
+
                 if (vals[0].Contains("G1") || vals[0].Contains("G0"))
                 {
                     for(int j = 1; j<vals.Length; j++)
@@ -3574,16 +3594,181 @@ namespace tcp_to_udp
                         if (val_parsed == double.NaN) continue;
                         if (lit == 'X') p_cur.x = val_parsed;
                         if (lit == 'Y') p_cur.y = val_parsed;
-                        if (lit == 'Z') p_cur.z = val_parsed;
+                        if (lit == 'Z') p_cur.z = val_parsed;                       
                         if (lit == 'E') e_cur = val_parsed;
                         if (lit == 'F') vel_cur = val_parsed*k_vel;
+
+                        if(pos_rel)
+                        {
+                            p_abs+= new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
+                            
+                        }
+                        else
+                        {
+                            p_abs = p_offs + new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
+                        }
+
+
+                        if (extr_rel || pos_rel)
+                        {
+                            e_abs += e_cur;
+                        }
+                        else
+                        {
+                            
+                            e_abs = e_cur + e_offs;
+                        }
                     }
 
                     coms.Add(new StepperFrame(p_cur.Clone(),e_cur,vel_cur));
                 }
 
 
+                if (vals[0].Contains("G2") || vals[0].Contains("G3"))//to do
+                {
 
+                }
+
+                if (vals[0].Contains("G4"))
+                {
+                    double wait_ms = 0;
+                    double wait_s = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') wait_s = val_parsed;
+                        if (lit == 'P') wait_ms = val_parsed;
+
+
+
+                    }
+
+                    coms.Add(new StepperFrame(1,589,"P"+wait_ms+1000*wait_s));
+                }
+
+                if (vals[0].Contains("G28"))
+                {
+                    coms.Add(new StepperFrame(1, 589, "X12"));
+                }
+
+                if (vals[0].Contains("G90"))
+                {
+                    pos_rel = false;
+                }
+                if (vals[0].Contains("G91"))
+                {
+                    pos_rel = true;
+                }
+
+                if (vals[0].Contains("M82"))
+                {
+                    extr_rel = false;
+                }
+                if (vals[0].Contains("M83"))
+                {
+                    extr_rel = true;
+                }
+
+                if (vals[0].Contains("G92"))
+                {
+                    var p_st = new Point3d_GL(0, 0, 0);
+                    var e_st = 0d;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'X') { p_offs.x = val_parsed; p_st.x = val_parsed; }
+                        if (lit == 'Y') { p_offs.y = val_parsed; p_st.y = val_parsed; }
+                        if (lit == 'Z') { p_offs.z = val_parsed; p_st.z = val_parsed; }
+                        if (lit == 'E') { e_offs = e_abs; e_abs = val_parsed; } 
+                    }
+
+                    //p_cur = new Point3d_GL(0,0,0);
+                }
+
+                if (vals[0].Contains("M106"))
+                {
+                    var fan_ind = 0;
+                    var fan_val = 0;
+                    var board_ind = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') fan_val = (int)val_parsed;
+                        if (lit == 'P') fan_ind = (int)val_parsed;
+                        if (lit == 'B') board_ind = (int)val_parsed;
+                    }
+
+                    coms.Add(new StepperFrame(board_ind, 581, "I"+fan_ind+" A"+fan_val));
+                }
+
+                if (vals[0].Contains("M107"))
+                {
+                    var fan_ind = 0;
+                    var fan_val = 0;
+                    var board_ind = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') fan_val = (int)val_parsed;
+                        if (lit == 'P') fan_ind = (int)val_parsed;
+                        if (lit == 'B') board_ind = (int)val_parsed;
+                    }
+
+                    coms.Add(new StepperFrame(board_ind, 581, "I" + fan_ind + " A0"));
+                    pos_rel = false;
+                }
+
+
+                if (vals[0].Contains("M140"))
+                {
+                    var temp_dest = 0d;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') { temp_dest = val_parsed; }
+                    }
+                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 0));
+                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 0));
+
+                }
+
+                if (vals[0].Contains("M190"))
+                {
+                    var temp_dest = 0d;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') { temp_dest = val_parsed; }
+                    }
+
+
+                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 1));
+                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 1));
+                }
             }
 
             return coms.ToArray();

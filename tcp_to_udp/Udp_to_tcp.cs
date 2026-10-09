@@ -412,8 +412,10 @@ namespace tcp_to_udp
                     var frames_xyz_list = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer).ToList();
                     if (frames_xyz_list != null)
                     {
-                        frames_xyz_list.Insert(0, new StepperFrame(cur_frame.p_xyz - offset_frame.p_xyz, 0, jog_xyz_vel));
-                        prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(), ref printer, offset_frame)?.ToList();
+                        //frames_xyz_list.Insert(0, new StepperFrame(cur_frame.p_xyz - offset_frame.p_xyz, 0, jog_xyz_vel));
+
+                        start_main_alternate_prog(frames_xyz_list.ToArray());
+                        /*prog_commands = StepperFrame.convert_g_code(frames_xyz_list.ToArray(), ref printer, offset_frame)?.ToList();
 
 
                         if (prog_commands != null)
@@ -421,7 +423,7 @@ namespace tcp_to_udp
                             prog_commands = StepperFrame.prepare_g_code_to_load(prog_commands.ToArray(), ref printer).ToList();
                             cur_prog_line = 0;
                             prog_state = programm_state.MOVE;
-                        }
+                        }*/
 
                         //Console.WriteLine("move");
                     }
@@ -434,7 +436,8 @@ namespace tcp_to_udp
                 }
                 else
                 {
-                    _TCPserver1.pushBuffer_in("num1 M588 A0" + "\n");
+                    //load_commands(new string[] { "num1 M588 A0" });
+                    load_commands(new string[] { "num1 M589 S" });
                     prog_state = programm_state.STOP;
                 }
             }
@@ -482,7 +485,8 @@ namespace tcp_to_udp
                 if (val <= 4) { val = 4; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps4); }
                 else { val = 18; printer.delta_init_calibr(StepperPrinter.delta_calibr_ps_count.ps18); }
 
-                _TCPserver1.pushBuffer_in("main M589 X80" + "\n");
+                load_commands(new string[] { "main M589 X80" });
+               
 
                 printer.delta_calibr_en = true;
 
@@ -1115,6 +1119,15 @@ namespace tcp_to_udp
                                 }
 
 
+                                var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0);
+                                var printer_work =
+                                    (consider_all_steps1 == 1 && all_steps1 == 1) ||
+                                    (consider_all_steps2 == 1 && all_steps2 == 1) ||
+                                    (consider_wait_all_steps_kinem == 1 && all_steps_kinem == 1) ||
+                                    (consider_prog_done == 1 && ring_buf_en == 1) ||
+                                    (consider_wait_en == 1 && wait_en == 1) ||
+                                    (consider_wait_term == 1 && wait_term == 1);
+
 
                                 //prog_work-----------------------------------------------------------------
                                 if (prog_state == programm_state.MOVE && (cur_prog_line + safe_len_send_val < cur_prog_line_board || cur_prog_line < lookup_buf - safe_len_send_val))
@@ -1131,26 +1144,19 @@ namespace tcp_to_udp
                                 }
 
                                 //jog work-----------------------------------------------------------------
-                                if (prog_state == programm_state.JOG && (cur_jog_line + safe_len_send_val < cur_prog_line_board || cur_jog_line < lookup_buf - safe_len_send_val))
+                                if ((prog_state == programm_state.JOG && (cur_jog_line + safe_len_send_val < cur_prog_line_board || cur_jog_line < lookup_buf - safe_len_send_val))&& commands_load)
                                 {
                                     if (cur_jog_line < jog_commands?.Count)
                                     {
 
                                         var com = jog_commands[cur_jog_line].get_command(printer);
-                                        _TCPserver1.pushBuffer_in(com + "\n");
+                                        load_commands(new string[] { com });
                                         //Console.WriteLine("cur_prog_line_board: " + cur_prog_line_board + "; cur_jog_line: " + cur_jog_line+"/"+ jog_commands?.Count+"; "+com);
 
                                         cur_jog_line++;
                                     }
                                 }
-                                var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0);
-                                var printer_work =
-                                    (consider_all_steps1 == 1 && all_steps1 == 1) ||
-                                    (consider_all_steps2 == 1 && all_steps2 == 1) ||
-                                    (consider_wait_all_steps_kinem == 1 && all_steps_kinem == 1) ||
-                                    (consider_prog_done == 1 && ring_buf_en == 1) ||
-                                    (consider_wait_en == 1 && wait_en == 1) ||
-                                    (consider_wait_term == 1 && wait_term == 1);
+                                
 
                                 if (prog_state == programm_state.ALTERNATELY)
                                 {
