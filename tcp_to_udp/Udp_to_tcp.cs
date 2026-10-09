@@ -604,11 +604,17 @@ namespace tcp_to_udp
                     if(prog_num_give<=0)
                     {
                         Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
+                        main_alternately_commands_exec = false;
+                        prog_state = programm_state.STOP;
+                          
+                        return;
+
                     }
                     else
                     {
                         prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, settins_string, last_frame.clone()));
-                        last_frame = prog_cur[prog_cur.Count - 1];
+                        last_frame = StepperFrame.find_last_kinematic_frame(prog_cur.ToArray());
+                        if (last_frame == null) return;
                     }
                 }
 
@@ -621,7 +627,7 @@ namespace tcp_to_udp
                 {
                     prog_num_take = 2;
                 }
-
+                
                 prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, settins_string, last_frame.clone()));
 
                 if (prog_cur != null)
@@ -650,6 +656,9 @@ namespace tcp_to_udp
                 if (prog_num_give <= 0)
                 {
                     Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
+                    main_alternately_commands_exec = false;
+                    prog_state = programm_state.STOP;
+                    return;
                 }
                 else
                 {
@@ -1012,7 +1021,7 @@ namespace tcp_to_udp
                         {
                             //_TCPserver1.send_mes(mes);
                             var frame_out = cur_frame.p_xyz.Clone();
-                            frame_out.z -= printer.comp_off_bed(frame_out);
+                            //frame_out.z -= printer.comp_off_bed(frame_out);
                             frame_out -= offset_frame.p_xyz;
                             var tools = "00000";
                             if (tool_inds.Length == 4) tools = tool_inds[0] + "" + tool_inds[1] + "" + tool_inds[2] + "" + tool_inds[3] + "" + tool_active;
@@ -1101,6 +1110,7 @@ namespace tcp_to_udp
                                     cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[7] };
 
                                     cur_frame = printer.solve_fk(cur_pos);
+                                    cur_frame.p_xyz.z -= printer.comp_off_bed(cur_frame.p_xyz);
                                     /**/
                                 }
 

@@ -1844,9 +1844,11 @@ namespace tcp_to_udp
 
         public Point3d_GL bed_calib_vec = new Point3d_GL(0.0049,0.0083,1);
 
+        //public Point3d_GL bed_calib_vec = new Point3d_GL(0.0, 0.0, 1);
+
         public double koef_extrus = 1;
         public double koef_vel = 1;
-        //public Point3d_GL bed_calib_vec = new Point3d_GL(0.0049, 0.2, 1);
+        
         public StepperPrinter()
         {
             init_delta_comp();
@@ -1870,6 +1872,7 @@ namespace tcp_to_udp
         }
         public long[] solve_ik(StepperFrame frame)
         {
+            if (frame.poses_have) return frame.poses;
             var p_xyz_ik = new Point3d_GL();
 
             var p_dest = frame.p_xyz.Clone();
@@ -2802,6 +2805,10 @@ namespace tcp_to_udp
         public int consider_wait_en = 0;
         public int consider_wait_term = 0;
 
+        public long[] poses = new long[5];
+
+        public bool poses_have = false;
+
         
 
 
@@ -3058,6 +3065,22 @@ namespace tcp_to_udp
 
             return frames_smooth.ToArray();
         }
+
+
+        public static StepperFrame find_last_kinematic_frame(StepperFrame[] frames)
+        {
+            if (frames == null) return null;
+            if (frames.Length == 0) return null;
+            
+        
+            for (var i = frames.Length-1; i >=0; i--)
+            {
+                if (frames[i].kinematic && frames[i].movement && frames[i].com_num == 588) return frames[i].clone();
+            }
+
+            return null;
+        }
+
 
         public static StepperFrame frame_aver(StepperFrame[] frames, StepperFrame frame_ref)
         {
@@ -3369,15 +3392,14 @@ namespace tcp_to_udp
             for (int i = 0; i < orig_g_code.Length; i++)
             {
                 orig_g_code[i].p_xyz += offset.p_xyz;
+
                 
-                if (i < orig_g_code.Length-1 && i<2)
-                {
-                    off_z = printer.comp_off_bed(orig_g_code[i].p_xyz);
-                }
-                else
-                {
+                    
                     orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
-                }
+                    //Console.WriteLine(orig_g_code[i].p_xyz.z);
+                
+
+                
                 Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
             }
 
