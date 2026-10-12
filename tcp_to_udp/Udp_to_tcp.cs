@@ -475,7 +475,9 @@ namespace tcp_to_udp
             }
             else if (command.Contains("M612"))//set_zero
             {
+                var val = vals_from_command_d(com_board,3);
                 offset_frame = cur_frame.clone();
+                offset_frame.p_xyz -= new Point3d_GL(val[0], val[1], val[2]);
             }
             else if (command.Contains("M613"))//set_zero
             {
@@ -1061,7 +1063,7 @@ namespace tcp_to_udp
 
                                     
 
-                                    ring_buf_en = Convert.ToInt32(vars_from_mes[6]);
+                                    //ring_buf_en = Convert.ToInt32(vars_from_mes[6]);
 
 
                                     var nossle_calib_vals = vars_from_mes[10];
@@ -1175,8 +1177,8 @@ namespace tcp_to_udp
                                             {
                                                 var com = alternately_commands[cur_alternately_line].get_command(printer);
                                                 Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
-                                                Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
-                                                Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
+                                                //Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
+                                                //Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
 
 
                                                 load_commands(new string[] { com });
@@ -1191,21 +1193,21 @@ namespace tcp_to_udp
                                                 //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                                 cur_alternately_line++;
 
-                                                if(consider_prog_done==1)
+                                                if(consider_prog_done == 1)
                                                 {
                                                     Console.WriteLine("set onsider_prog_done==1");
                                                 }
                                                 else
                                                 {
-                                                    Console.WriteLine("set onsider_prog_done==0");
+                                                   // Console.WriteLine("set onsider_prog_done==0");
                                                 }
                                             }
                                         }
                                         else
                                         {
-                                            /*Console.WriteLine("consider_prog_done == 1 && ring_buf_en == 1 " + (consider_prog_done == 1 && ring_buf_en == 1));
+                                            Console.WriteLine("consider_prog_done == 1 && ring_buf_en == 1 " + (consider_prog_done == 1 && ring_buf_en == 1));
                                             Console.WriteLine("printer_work: " + printer_work);
-                                            Console.WriteLine("STOP; ring_buf_en:" + ring_buf_en+" "+ alternately_commands[cur_alternately_line-1].consider_prog_done+" "+(cur_alternately_line - 1));*/
+                                            Console.WriteLine("STOP; ring_buf_en:" + ring_buf_en+" "+ alternately_commands[cur_alternately_line-1].consider_prog_done+" "+(cur_alternately_line - 1));
                                             prog_state = programm_state.STOP;
                                         }
                                     }

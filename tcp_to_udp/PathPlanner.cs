@@ -2922,6 +2922,11 @@ namespace tcp_to_udp
 
         }
 
+        public override string ToString()
+        {
+            return "plate_num: " + plate_num + "; com_num: "+com_num+"; xyz: "+ p_xyz +"; body:"+body;
+        }
+
 
         static public StepperFrame[] comp_e_width(StepperFrame[] frms)
         {
@@ -3398,14 +3403,8 @@ namespace tcp_to_udp
             var off_z = 0d;
             for (int i = 0; i < orig_g_code.Length; i++)
             {
-                orig_g_code[i].p_xyz += offset.p_xyz;
-
-                
-                    
-                    orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
-                    //Console.WriteLine(orig_g_code[i].p_xyz.z);
-                
-
+                orig_g_code[i].p_xyz += offset.p_xyz;    
+                orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
                 
                 Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
             }
@@ -3585,6 +3584,12 @@ namespace tcp_to_udp
 
                 if (vals[0].Contains("G1") || vals[0].Contains("G0"))
                 {
+
+                    if(pos_rel)
+                    {
+                        p_cur = new Point3d_GL(0, 0, 0);
+                    }
+
                     for(int j = 1; j<vals.Length; j++)
                     {
                         if (vals[j].Length<2) continue;
@@ -3600,12 +3605,11 @@ namespace tcp_to_udp
 
                         if(pos_rel)
                         {
-                            p_abs+= new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
-                            
+                            p_abs += new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);                            
                         }
                         else
                         {
-                            p_abs = p_offs + new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
+                            p_abs =  new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
                         }
 
 
@@ -3614,8 +3618,7 @@ namespace tcp_to_udp
                             e_abs += e_cur;
                         }
                         else
-                        {
-                            
+                        {                            
                             e_abs = e_cur + e_offs;
                         }
                     }
@@ -3642,12 +3645,9 @@ namespace tcp_to_udp
                         if (val_parsed == double.NaN) continue;
                         if (lit == 'S') wait_s = val_parsed;
                         if (lit == 'P') wait_ms = val_parsed;
-
-
-
                     }
 
-                    coms.Add(new StepperFrame(1,589,"P"+wait_ms+1000*wait_s));
+                    coms.Add(new StepperFrame(1,589,"P" + wait_ms + 1000*wait_s));
                 }
 
                 if (vals[0].Contains("G28"))
@@ -3684,12 +3684,12 @@ namespace tcp_to_udp
                         var v_str = vals[j].Substring(1);
                         var val_parsed = parse_double(v_str);
                         if (val_parsed == double.NaN) continue;
-                        if (lit == 'X') { p_offs.x = val_parsed; p_st.x = val_parsed; }
-                        if (lit == 'Y') { p_offs.y = val_parsed; p_st.y = val_parsed; }
-                        if (lit == 'Z') { p_offs.z = val_parsed; p_st.z = val_parsed; }
+                        if (lit == 'X') { p_st.x = val_parsed; }
+                        if (lit == 'Y') {  p_st.y = val_parsed; }
+                        if (lit == 'Z') { p_st.z = val_parsed; }
                         if (lit == 'E') { e_offs = e_abs; e_abs = val_parsed; } 
                     }
-
+                    coms.Add(new StepperFrame(0, 612, p_st.x+" "+p_st.y+" "+p_st.z));
                     //p_cur = new Point3d_GL(0,0,0);
                 }
 
