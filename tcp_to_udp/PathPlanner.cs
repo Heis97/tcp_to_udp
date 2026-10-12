@@ -3588,6 +3588,10 @@ namespace tcp_to_udp
                     if(pos_rel)
                     {
                         p_cur = new Point3d_GL(0, 0, 0);
+                        if(extr_rel)
+                        {
+                            e_cur = 0;
+                        }
                     }
 
                     for(int j = 1; j<vals.Length; j++)
@@ -3658,10 +3662,16 @@ namespace tcp_to_udp
                 if (vals[0].Contains("G90"))
                 {
                     pos_rel = false;
+                    p_cur = new Point3d_GL(0, 0, 0);
+                    if (extr_rel)
+                    {
+                        e_cur = 0;
+                    }
                 }
                 if (vals[0].Contains("G91"))
                 {
                     pos_rel = true;
+                   
                 }
 
                 if (vals[0].Contains("M82"))
