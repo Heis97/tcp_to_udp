@@ -2342,14 +2342,20 @@ namespace tcp_to_udp
             var a_z_sh = (int)(delta_fk_table_k * ((a_z - c_z) + l));
             var b_z_sh = (int)(delta_fk_table_k * ((b_z - c_z) + l));
 
-            var x_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 0];
-            var y_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 1];
-            var z_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 2];
+            if(a_z_sh< delta_fk_table_ps.GetLength(0) && b_z_sh < delta_fk_table_ps.GetLength(1)  && a_z_sh>= 0 && b_z_sh >= 0)
+            {
+                var x_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 0];
+                var y_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 1];
+                var z_0 = delta_fk_table_ps[a_z_sh, b_z_sh, 2];
 
-            z_0 += c_z;
+                z_0 += c_z;
+                return new Point3d_GL(x_0, y_0, z_0);
+            }
+            else
+            {
+                return new Point3d_GL(c_z, c_z, c_z);
+            }
             
-
-            return new Point3d_GL(x_0,y_0,z_0);
 
 
         }
@@ -2924,7 +2930,7 @@ namespace tcp_to_udp
 
         public override string ToString()
         {
-            return "plate_num: " + plate_num + "; com_num: "+com_num+"; xyz: "+ p_xyz +"; body:"+body;
+            return "plate_num: " + plate_num + "; com_num: "+com_num+"; xyz: "+ p_xyz+"; e: " + e +"; body:"+body;
         }
 
 
@@ -2947,7 +2953,7 @@ namespace tcp_to_udp
                 var frame = frms[i].clone();
                 if (r>0)
                 {
-                    var e_width = Math.Abs(  (e2) / r);
+                    var e_width =  (e2) / r;
                     frame.e_width = e_width;
                 }
 
@@ -3257,6 +3263,7 @@ namespace tcp_to_udp
                 frames_rel[i] = frames_in[i].clone();
                 var de = frames_in[i].e - frames_in[i - 1].e;                
                 frames_rel[i].e = de;
+                //Console.WriteLine(frames_rel[i].e);
             }
 
             return frames_rel;
@@ -3295,7 +3302,7 @@ namespace tcp_to_udp
         {
             if (frames_in == null) return null;
             if (frames_in.Length == 0) return null;
-
+            //Console.WriteLine("e_to_rel 1:");
             frames_in = e_to_rel(frames_in);
             StepperFrame[] frames = comp_e_width(frames_in);
             //e rel
@@ -3351,13 +3358,14 @@ namespace tcp_to_udp
             var frames_time = frames_calc_time(frms.ToArray());
             frms = e_to_abs(frms);
             var frms_abs = time_to_abs(frms);
-            //smooth extr , PA
+            //PA
             var filtr_ps = filtr_time(frms.ToArray(), StepperPrinter.min_time *0.001);
+            //Console.WriteLine("e_to_rel 2:");
             filtr_ps = e_to_rel(filtr_ps);
             frames_time = time_to_rel(filtr_ps);
             
             //Console.WriteLine("frames_time_________");
-            for(int i  = 1; i < frames_time.Length; i++)
+            for(int i = 1; i < frames_time.Length; i++)
             {
                 var dr = (frames_time[i].p_xyz - frames_time[i - 1].p_xyz).magnitude();
                 //Console.WriteLine(frames_time[i].time_abs + " " + frames_time[i].vel + " "+ frames_time[i].e);
@@ -3403,7 +3411,8 @@ namespace tcp_to_udp
             var off_z = 0d;
             for (int i = 0; i < orig_g_code.Length; i++)
             {
-                orig_g_code[i].p_xyz += offset.p_xyz;    
+                orig_g_code[i].p_xyz += offset.p_xyz;
+                //orig_g_code[i].e += offset.e;
                 orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
                 
                 Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
@@ -3419,13 +3428,15 @@ namespace tcp_to_udp
 
             //coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
             //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
-            printer.abs_pos_extr = 0;
+            //printer.abs_pos_extr = 0;
+            var test_abs_e = 0d;
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
                 //var l = stepper_frames[i].get_command(printer);
                 //Console.Write(""+ l+" "+ stepper_frames[i].p_xyz);
-               // Console.WriteLine("; p: " + stepper_frames[i].p_xyz);
+                test_abs_e += stepper_frames[i].e;
+                //Console.WriteLine(" p: " + stepper_frames[i].p_xyz + " " + test_abs_e);
                 coms.Add(stepper_frames[i]);
             }
             return coms.ToArray();
@@ -3448,7 +3459,7 @@ namespace tcp_to_udp
             var coms = new List<StepperFrame>();
             printer.cur_prog_number++;
             coms.Add(new StepperFrame(1, 588, "A0 F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
-            coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
+            //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
             var stop_len = comp_stop_len(stepper_frames);
 
             int i_start = Math.Min(StepperPrinter.prog_loaded_bef_start, stop_len - 1);
@@ -3514,8 +3525,8 @@ namespace tcp_to_udp
             var frames_out = new List<StepperFrame>();
             var frames_kinematic = new List<StepperFrame>();
             int kinematic_count = 0;
-            var last_frame = cur_frame.clone();
-            Console.WriteLine("offset_alternate: " + offset.p_xyz);
+            var last_frame =  cur_frame.clone();
+            Console.WriteLine("offset_alternate: " + offset.p_xyz+" "+offset.e);
             for (int i=0; i<stepper_frames.Length; i++)
             {
                 if (stepper_frames[i].kinematic)
@@ -3577,24 +3588,22 @@ namespace tcp_to_udp
             {
                 var line = orig_g_code[i].Trim();
                 line = line.Replace("  "," ");
-                line = line.Replace("  ", " ");
+                line = line.Replace("  "," ");
                 var vals = line.Split(' ');
                 //if (vals.Length<2) continue;
-
+                if (pos_rel)
+                {
+                    p_cur = new Point3d_GL(0, 0, 0);
+                }
+                if (extr_rel || pos_rel)
+                {
+                    e_cur = 0;
+                }
 
                 if (vals[0].Contains("G1") || vals[0].Contains("G0"))
                 {
-
-                    if(pos_rel)
-                    {
-                        p_cur = new Point3d_GL(0, 0, 0);
-                        if(extr_rel)
-                        {
-                            e_cur = 0;
-                        }
-                    }
-
-                    for(int j = 1; j<vals.Length; j++)
+                    
+                    for (int j = 1; j<vals.Length; j++)
                     {
                         if (vals[j].Length<2) continue;
                         var lit = vals[j][0];
@@ -3605,7 +3614,7 @@ namespace tcp_to_udp
                         if (lit == 'Y') p_cur.y = val_parsed;
                         if (lit == 'Z') p_cur.z = val_parsed;                       
                         if (lit == 'E') e_cur = val_parsed;
-                        if (lit == 'F') vel_cur = val_parsed*k_vel;
+                        if (lit == 'F') vel_cur = val_parsed * k_vel;
 
                         if(pos_rel)
                         {
@@ -3622,12 +3631,12 @@ namespace tcp_to_udp
                             e_abs += e_cur;
                         }
                         else
-                        {                            
+                        {
                             e_abs = e_cur + e_offs;
                         }
                     }
-
-                    coms.Add(new StepperFrame(p_cur.Clone(),e_cur,vel_cur));
+                    Console.WriteLine("e_abs: " + e_abs + "; e_cur: " + e_cur + "; e_offs: " + e_offs +  "; pos_rel: " + pos_rel);
+                    coms.Add(new StepperFrame(p_cur.Clone(),e_abs,vel_cur));
                 }
 
 
@@ -3665,13 +3674,13 @@ namespace tcp_to_udp
                     p_cur = new Point3d_GL(0, 0, 0);
                     if (extr_rel)
                     {
-                        e_cur = 0;
+                        //e_cur = 0;
                     }
                 }
                 if (vals[0].Contains("G91"))
                 {
                     pos_rel = true;
-                   
+                    //e_abs = e_offs;
                 }
 
                 if (vals[0].Contains("M82"))
@@ -3687,6 +3696,10 @@ namespace tcp_to_udp
                 {
                     var p_st = new Point3d_GL(0, 0, 0);
                     var e_st = 0d;
+                    var x_en = 0;
+                    var y_en = 0;
+                    var z_en = 0;
+                    var e_en = 0;
                     for (int j = 1; j < vals.Length; j++)
                     {
                         if (vals[j].Length < 2) continue;
@@ -3694,13 +3707,15 @@ namespace tcp_to_udp
                         var v_str = vals[j].Substring(1);
                         var val_parsed = parse_double(v_str);
                         if (val_parsed == double.NaN) continue;
-                        if (lit == 'X') { p_st.x = val_parsed; }
-                        if (lit == 'Y') {  p_st.y = val_parsed; }
-                        if (lit == 'Z') { p_st.z = val_parsed; }
-                        if (lit == 'E') { e_offs = e_abs; e_abs = val_parsed; } 
+                        if (lit == 'X') { p_st.x = val_parsed ; x_en = 1; p_cur.x = val_parsed; }
+                        if (lit == 'Y') { p_st.y = val_parsed ; y_en = 1; p_cur.y = val_parsed; }
+                        if (lit == 'Z') { p_st.z = val_parsed ; z_en = 1; p_cur.z = val_parsed; }
+                        if (lit == 'E') { e_offs = e_abs; e_abs  = val_parsed ; e_en = 1; e_cur   = val_parsed;  } //
                     }
-                    coms.Add(new StepperFrame(0, 612, p_st.x+" "+p_st.y+" "+p_st.z));
+                    coms.Add(new StepperFrame(0, 612, p_st.x + " " + p_st.y + " " + p_st.z + " " + e_st + " " + x_en + " " + y_en + " " + z_en + " " + e_en));
                     //p_cur = new Point3d_GL(0,0,0);
+
+                    
                 }
 
                 if (vals[0].Contains("M106"))
@@ -3778,6 +3793,24 @@ namespace tcp_to_udp
 
                     if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 1));
                     else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 1));
+                }
+
+                if (vals[0].Contains("T"))
+                {
+                    /*var temp_dest = 0d;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') { temp_dest = val_parsed; }
+                    }
+
+
+                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 1));
+                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 1));*/
                 }
             }
 
