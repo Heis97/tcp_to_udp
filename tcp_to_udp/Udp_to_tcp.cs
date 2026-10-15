@@ -450,7 +450,7 @@ namespace tcp_to_udp
                 fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, jog_len);
                 jog_orig.Add(fr_jog);
 
-
+                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
                 start_main_alternate_prog(jog_orig.ToArray());
 
 
