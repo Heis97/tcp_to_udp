@@ -290,6 +290,7 @@ namespace tcp_to_udp
            
             var offs = cur_frame.clone();
             offs.p_xyz -= offset_frame.p_xyz;
+            
             alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur,ref printer, offset_frame, offs).ToList();
             cur_alternately_line = 0;
 
@@ -1181,12 +1182,14 @@ namespace tcp_to_udp
 
                                             if (printer_ready_kinem || !alternately_commands[cur_alternately_line].kinematic)
                                             {
+                                                if (alternately_commands[cur_alternately_line].reset_extr) printer.abs_pos_extr = 0;
                                                 var com = alternately_commands[cur_alternately_line].get_command(printer);
+
                                                 //Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
                                                 //Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
                                                 //Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
 
-
+                                               
                                                 load_commands(new string[] { com });
 
                                                 

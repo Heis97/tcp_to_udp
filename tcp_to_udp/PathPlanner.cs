@@ -1805,26 +1805,26 @@ namespace tcp_to_udp
         public double t_coef = 104616.18;
 
 
-        /* static double steps_xyz = 800;//800
-         public double R = 176.5;// 141; //150
-         public double r = 47.5;//34;  //40
-         public double l = 320;//218;  //215
-         public double printing_r = 100;
-         public double a_off = 0;// 0.3; //0
-         public double b_off = 0;// 0.24; //0 
+        static double steps_xyz = 800;//800
+        public double R = 176.5;// 141; //150
+        public double r = 47.5;//34;  //40
+        public double l = 320;//218;  //215
+        public double printing_r = 100;
+        public double a_off = 0;// 0.3; //0
+        public double b_off = 0;// 0.24; //0 
         static public double printer_max_acs = 50;//500
-         */
+         
 
 
 
-        static double steps_xyz = 80;
+        /*static double steps_xyz = 80;
         public double R =  141; //150
         public double r = 34;  //40
         public double l = 218;  //215
         public double printing_r = 100;
         public double a_off =  0.3; //0
         public double b_off =  0.24; //0
-        static public double printer_max_acs = 50;//500
+        static public double printer_max_acs = 500;//500*/
 
         public bool all_motors_stop1 = false;
         public bool all_motors_stop2 = true;
@@ -2355,9 +2355,6 @@ namespace tcp_to_udp
             {
                 return new Point3d_GL(c_z, c_z, c_z);
             }
-            
-
-
         }
 
         public Point3d_GL[] comp_delta_fitting(Point3d_GL p_cur_xyz, Point3d_GL p_dest_abc, double dr = 0.001)
@@ -2810,10 +2807,12 @@ namespace tcp_to_udp
 
         public int consider_wait_all_steps_kinem = 0;
         public int consider_all_steps1 = 0;
-        public int consider_all_steps2 =0;
-        public int consider_prog_done =0;
+        public int consider_all_steps2 = 0;
+        public int consider_prog_done = 0;
         public int consider_wait_en = 0;
         public int consider_wait_term = 0;
+
+        public bool reset_extr = false;
 
         public long[] poses = new long[5];
 
@@ -3459,9 +3458,12 @@ namespace tcp_to_udp
             var coms = new List<StepperFrame>();
             printer.cur_prog_number++;
             coms.Add(new StepperFrame(1, 588, "A0 F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
-            //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
+            //coms.Add();//  e = 0
+            var com_reset_e = new StepperFrame(1, 587, "I7 C0", true);
+            com_reset_e.reset_extr = true;
+            coms.Add(com_reset_e);
             var stop_len = comp_stop_len(stepper_frames);
-
+            printer.abs_pos_extr = 0;
             int i_start = Math.Min(StepperPrinter.prog_loaded_bef_start, stop_len - 1);
             for (int i = 0; i < stop_len; i++)
             {
@@ -3576,6 +3578,8 @@ namespace tcp_to_udp
 
             var p_cur = new Point3d_GL(0, 0, 0);
             var e_cur = 0d;
+
+
             var vel_cur = 10d;
             var k_vel = 1d / 60d;//if mm\min
 
@@ -3622,7 +3626,7 @@ namespace tcp_to_udp
                         }
                         else
                         {
-                            p_abs =  new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
+                            p_abs =  new Point3d_GL(p_cur.x, p_cur.y, p_cur.z) + p_offs;
                         }
 
 
@@ -3636,7 +3640,7 @@ namespace tcp_to_udp
                         }
                     }
                     Console.WriteLine("e_abs: " + e_abs + "; e_cur: " + e_cur + "; e_offs: " + e_offs +  "; pos_rel: " + pos_rel);
-                    coms.Add(new StepperFrame(p_cur.Clone(),e_abs,vel_cur));
+                    coms.Add(new StepperFrame(p_abs.Clone(),e_abs,vel_cur));
                 }
 
 
@@ -3671,7 +3675,7 @@ namespace tcp_to_udp
                 if (vals[0].Contains("G90"))
                 {
                     pos_rel = false;
-                    p_cur = new Point3d_GL(0, 0, 0);
+                    //p_cur = new Point3d_GL(0, 0, 0);
                     if (extr_rel)
                     {
                         //e_cur = 0;
@@ -3707,12 +3711,13 @@ namespace tcp_to_udp
                         var v_str = vals[j].Substring(1);
                         var val_parsed = parse_double(v_str);
                         if (val_parsed == double.NaN) continue;
-                        if (lit == 'X') { p_st.x = val_parsed ; x_en = 1; p_cur.x = val_parsed; }
-                        if (lit == 'Y') { p_st.y = val_parsed ; y_en = 1; p_cur.y = val_parsed; }
-                        if (lit == 'Z') { p_st.z = val_parsed ; z_en = 1; p_cur.z = val_parsed; }
-                        if (lit == 'E') { e_offs = e_abs; e_abs  = val_parsed ; e_en = 1; e_cur   = val_parsed;  } //
+                        if (lit == 'X') { p_offs.x = p_abs.x; p_abs.x = val_parsed; x_en = 1; p_cur.x = val_parsed; }
+                        if (lit == 'Y') { p_offs.y = p_abs.y; p_abs.y = val_parsed; y_en = 1; p_cur.y = val_parsed; }
+                        if (lit == 'Z') { p_offs.z = p_abs.z; p_abs.z = val_parsed; z_en = 1; p_cur.z = val_parsed; }
+                        if (lit == 'E') { e_offs = e_abs;     e_abs  = val_parsed ; e_en = 1; e_cur = val_parsed;  } //
                     }
-                    coms.Add(new StepperFrame(0, 612, p_st.x + " " + p_st.y + " " + p_st.z + " " + e_st + " " + x_en + " " + y_en + " " + z_en + " " + e_en));
+
+                    //coms.Add(new StepperFrame(0, 612, p_st.x + " " + p_st.y + " " + p_st.z + " " + e_st + " " + x_en + " " + y_en + " " + z_en + " " + e_en));
                     //p_cur = new Point3d_GL(0,0,0);
 
                     
@@ -3797,20 +3802,26 @@ namespace tcp_to_udp
 
                 if (vals[0].Contains("T"))
                 {
-                    /*var temp_dest = 0d;
-                    for (int j = 1; j < vals.Length; j++)
+                    //main com
+                    int tool_dest_ind = 0;
+                    for (int j = 0; j < vals.Length; j++)
                     {
                         if (vals[j].Length < 2) continue;
                         var lit = vals[j][0];
                         var v_str = vals[j].Substring(1);
                         var val_parsed = parse_double(v_str);
                         if (val_parsed == double.NaN) continue;
-                        if (lit == 'S') { temp_dest = val_parsed; }
+                        if (lit == 'T') { tool_dest_ind = (int)val_parsed; }
                     }
+                    coms.Add(new StepperFrame(0, 614,""));
+                }
 
+                if (vals[0].Contains("G54"))
+                {
+                    //main com
 
-                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 1));
-                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 1));*/
+                    //X - plate select
+
                 }
             }
 
