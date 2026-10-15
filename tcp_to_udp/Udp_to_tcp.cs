@@ -445,12 +445,13 @@ namespace tcp_to_udp
                 var jog_orig = new List<StepperFrame>();
                 var fr_cur = cur_frame.clone();
                 fr_cur.vel = jog_xyz_vel;
+                fr_cur.p_xyz -= offset_frame.p_xyz;
                 jog_orig.Add(fr_cur);
                 var fr_jog = fr_cur.clone();
                 fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, jog_len);
                 jog_orig.Add(fr_jog);
 
-                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
+                //offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
                 start_main_alternate_prog(jog_orig.ToArray());
 
 
