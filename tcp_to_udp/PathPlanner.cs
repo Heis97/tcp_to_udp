@@ -1805,26 +1805,26 @@ namespace tcp_to_udp
         public double t_coef = 104616.18;
 
 
-        static double steps_xyz = 800;//800
+        /*static double steps_xyz = 800;//800
         public double R = 176.5;// 141; //150
         public double r = 47.5;//34;  //40
         public double l = 320;//218;  //215
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
         public double b_off = 0;// 0.24; //0 
-        static public double printer_max_acs = 50;//500
+        static public double printer_max_acs = 50;//500*/
          
 
 
 
-        /*static double steps_xyz = 80;
+        static double steps_xyz = 80;
         public double R =  141; //150
         public double r = 34;  //40
         public double l = 218;  //215
         public double printing_r = 100;
         public double a_off =  0.3; //0
         public double b_off =  0.24; //0
-        static public double printer_max_acs = 500;//500*/
+        static public double printer_max_acs = 500;//500
 
         public bool all_motors_stop1 = false;
         public bool all_motors_stop2 = true;
@@ -3813,7 +3813,7 @@ namespace tcp_to_udp
                         if (val_parsed == double.NaN) continue;
                         if (lit == 'T') { tool_dest_ind = (int)val_parsed; }
                     }
-                    coms.Add(new StepperFrame(0, 614,""));
+                    coms.Add(new StepperFrame(0, 620, tool_dest_ind.ToString()));
                 }
 
                 if (vals[0].Contains("G54"))

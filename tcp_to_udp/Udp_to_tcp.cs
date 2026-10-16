@@ -111,8 +111,14 @@ namespace tcp_to_udp
         StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
 
         StepperFrame offset_plate = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-        StepperFrame offset_nossle = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
 
+        StepperFrame[] offset_nossle = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) } ;
+        StepperFrame[] offset_zero_pos = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
+
+        StepperFrame offset_internal = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+
+
+        bool[] tool_calibrated = { false, false, false };
 
 
         StepperPrinter printer = new StepperPrinter();
@@ -263,6 +269,11 @@ namespace tcp_to_udp
         bool main_alternately_commands_exec = false;
         enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY , CALIBRATE}
 
+        enum coordinate_system { MANUAL, AUTO, INTERNAL, CURRENT }
+
+        coordinate_system cur_coordinate_system = coordinate_system.CURRENT;
+        coordinate_system dest_coordinate_system = coordinate_system.MANUAL;
+
         bool auto_calibr = false;
         int cur_nossle_type = 0;
         int cur_plate_type = 0;
@@ -271,16 +282,29 @@ namespace tcp_to_udp
 
         public void comp_offset()
         {
-            if(auto_calibr)
+            if(cur_coordinate_system == coordinate_system.AUTO)
             {
                 
                 
                 offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]);
-                Console.WriteLine("offset_nossle" + offset_nossle.p_xyz);
+                Console.WriteLine("offset_nossle" + offset_nossle[tool_active].p_xyz);
                 Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
-                offset_frame = new StepperFrame(offset_nossle.p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
+                offset_frame = new StepperFrame(offset_nossle[tool_active].p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
 
                 Console.WriteLine("offset_frame:" + offset_frame.p_xyz );
+            }
+
+            else if(cur_coordinate_system == coordinate_system.MANUAL)
+            {
+                offset_frame.p_xyz = offset_zero_pos[tool_active].p_xyz.Clone();
+            }
+            else if (cur_coordinate_system == coordinate_system.INTERNAL)
+            {
+                offset_frame.p_xyz = offset_internal.p_xyz;
+            }
+            else if (cur_coordinate_system == coordinate_system.CURRENT)
+            {
+                offset_frame.p_xyz = cur_frame.p_xyz.Clone();
             }
         }
 
@@ -438,12 +462,12 @@ namespace tcp_to_udp
                 jog_xyz_vel = val;
             }
 
-            else if (command.Contains("M611" ) && all_steps_kinem == 0)//jog 
+            else if (command.Contains("M611") && all_steps_kinem == 0)//jog 
             {
 
                 var val = val_from_command(com_board);
                 var jog_orig = new List<StepperFrame>();
-                var fr_cur = cur_frame.clone();
+                var fr_cur = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
                 fr_cur.vel = jog_xyz_vel;
                 fr_cur.p_xyz -= offset_frame.p_xyz;
                 jog_orig.Add(fr_cur);
@@ -451,6 +475,7 @@ namespace tcp_to_udp
                 fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, jog_len);
                 jog_orig.Add(fr_jog);
 
+                cur_coordinate_system = coordinate_system.CURRENT;
                 //offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
                 start_main_alternate_prog(jog_orig.ToArray());
 
@@ -459,7 +484,7 @@ namespace tcp_to_udp
             else if (command.Contains("M612"))//set_zero
             {
                 var val = vals_from_command_d(com_board,8);
-                offset_frame = cur_frame.clone();
+                offset_zero_pos[tool_active] = cur_frame.clone();
 
                 var x = val[0];
                 var y = val[1];
@@ -480,7 +505,7 @@ namespace tcp_to_udp
                 //exec_main_prog(new string[] { "num1 M587 I0 " });
 
             }
-            else if (command.Contains("M613"))//set_zero
+            else if (command.Contains("M613"))//
             {
 
                 var val = val_from_command(com_board);
@@ -569,7 +594,7 @@ namespace tcp_to_udp
 
 
                 //i3 vert, i4 rot, 
-                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
+                cur_coordinate_system = coordinate_system.INTERNAL;
                 auto_calibr = false;
                 StepperFrame[] prog_cur = null;
                 prog_cur = StepperPrinter.gen_change_prog(val, settins_string, cur_frame.clone());
@@ -579,6 +604,7 @@ namespace tcp_to_udp
 
             else if (command.Contains("M620")) // take i tool
             {
+                cur_coordinate_system = coordinate_system.INTERNAL;
                 var prog_cur = new List<StepperFrame>();
 
                 var val = val_from_command(com_board);
@@ -854,7 +880,7 @@ namespace tcp_to_udp
             else if (command.Contains("M638"))
             {
                 var val = vals_from_command_d(com_board, 3);
-                offset_nossle.p_xyz = new Point3d_GL(val[0], val[1], val[2]);
+                offset_nossle[tool_active].p_xyz = new Point3d_GL(val[0], val[1], val[2]);
 
             }
             else if (command.Contains("M639"))
@@ -863,7 +889,18 @@ namespace tcp_to_udp
                 tool_active = val;
 
             }
+            else if (command.Contains("M640"))
+            {
+                var val = val_from_command(com_board);
+                switch(val)
+                {
+                    case 0: cur_coordinate_system = coordinate_system.MANUAL; break;
+                    case 1: cur_coordinate_system = coordinate_system.AUTO; break;
+                    case 2: cur_coordinate_system = coordinate_system.CURRENT; break;
+                    case 3: cur_coordinate_system = coordinate_system.INTERNAL; break;
+                }
 
+            }
             else if (command.Contains("M700"))//set all stop
             {
                 prog_state = programm_state.STOP;
@@ -873,11 +910,9 @@ namespace tcp_to_udp
                 main_alternately_commands_counter = main_alternately_commands.Count + 1;
             }
 
-            else if (command.Contains("M701"))//set all stop
+            else if (command.Contains("M701"))//stop condition
             {
                 var vals = vals_from_command(com_board, 6);
-
-
 
                 consider_wait_all_steps_kinem = vals[0];
                 consider_all_steps1 = vals[1];
@@ -1490,9 +1525,9 @@ namespace tcp_to_udp
 
                                             var fr_x_cal = (calibrate_nossle_frames[0].p_xyz + calibrate_nossle_frames[1].p_xyz) / 2;
                                             var fr_y_cal = (calibrate_nossle_frames[2].p_xyz + calibrate_nossle_frames[3].p_xyz) / 2;
-                                            offset_nossle.p_xyz.x = fr_x_cal.x;
-                                            offset_nossle.p_xyz.y = fr_y_cal.y;
-                                            offset_nossle.p_xyz.z = cur_frame.p_xyz.z;
+                                            offset_nossle[tool_active].p_xyz.x = fr_x_cal.x;
+                                            offset_nossle[tool_active].p_xyz.y = fr_y_cal.y;
+                                            offset_nossle[tool_active].p_xyz.z = cur_frame.p_xyz.z;
                                             start_alternate_prog(prog_cur.ToArray());
                                             calibrating_nossle = false;
                                             auto_calibr = true;
