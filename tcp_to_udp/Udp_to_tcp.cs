@@ -80,45 +80,11 @@ namespace tcp_to_udp
         long command_counter1 = 0;
         long command_counter2 = 0;
 
-        volatile int string_is_ending = 0;
-        volatile int pound_is_ending = 0;
 
 
-        SettingsString settins_string = null;
+        
 
-        List<string> prog_orig_commands = new List<string>();
-
-        List<List<StepperFrame>> main_alternately_commands = new List<List<StepperFrame>>();
-        int main_alternately_commands_counter = 0;
-
-
-        List<StepperFrame> alternately_commands = new List<StepperFrame>();
-        List<StepperFrame> prog_commands = new List<StepperFrame>();
-        List<StepperFrame> jog_commands = new List<StepperFrame>();
-
-        StepperFrame[] bed_calib_ps = new StepperFrame[3];
-        int cur_jog_line = 0;
-        int cur_alternately_line = 0;
-        int cur_alternately_line_internal = 0;
-        programm_state prog_state = programm_state.STOP;
-        int cur_prog_line = 0;
-        int pause_prog_line = 0;
-
-
-        long[] cur_pos = new long[] { 0, 0, 0, 0 };
-        long[] prev_pos = new long[] { 0, 0, 0, 0 };
-        StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-        StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-
-        StepperFrame offset_plate = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-
-        StepperFrame[] offset_nossle = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) } ;
-        StepperFrame[] offset_zero_pos = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
-
-        StepperFrame offset_internal = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-
-
-        bool[] tool_calibrated = { false, false, false };
+        
 
 
         StepperPrinter printer = new StepperPrinter();
@@ -220,121 +186,19 @@ namespace tcp_to_udp
             CvInvoke.WaitKey();
         }
 
-        double jog_xyz_vel = 10;
-        int ring_en = 0;
-        int lookup_buf = 100;
-        int safe_len_send_val = 40;
+
+        
+
+        
+
+        
 
 
+        
 
-        int ring_buf_en = 0;
-        int all_steps_kinem = 0;
-        int all_steps1 = 0;        
-        int prog_done = 0;
-        int wait_en = 0;
-        int wait_term = 0;
+        
 
-        int all_steps2 = 0;
-
-        int consider_wait_all_steps_kinem = 0;
-        int consider_all_steps1 = 0;
-        int consider_prog_done = 0;
-        int consider_wait_en =0;
-        int consider_wait_term = 0;
-
-        int consider_all_steps2 = 0;
-
-
-        //------------------------------------------
-        int prev_delta_calib = 0;
-        int prev_homing = 0;
-        bool delta_calib_go_next_p = false;
-        bool delta_calib_nozzle_up = false;
-
-        int calibr_x = -1;
-        int calibr_y = -1;
-        int calibr_z = -1;
-        //----------------------------------------
-        int max_count_cur_prog = 0;
-        double jog_len = 100;
-        int stop_len = 21;
-        bool stop_len_setted = false;
-        //================================
-        double calibr_vel = 3d;
-        bool calibrating_nossle = false;
-        int calibrate_nossle_stage_counter = 0;
-        List< StepperFrame> calibrate_nossle_frames = new List< StepperFrame>();
-
-        int[] tool_inds = new int[4];
-        bool main_alternately_commands_exec = false;
-        enum programm_state { MOVE, STOP, PAUSE, JOG , ALTERNATELY , CALIBRATE}
-
-        enum coordinate_system { MANUAL, AUTO, INTERNAL, CURRENT }
-
-        coordinate_system cur_coordinate_system = coordinate_system.CURRENT;
-        coordinate_system dest_coordinate_system = coordinate_system.MANUAL;
-
-        bool auto_calibr = false;
-        int cur_nossle_type = 0;
-        int cur_plate_type = 0;
-
-        int tool_active = 0;
-
-        public void comp_offset()
-        {
-            if(cur_coordinate_system == coordinate_system.AUTO)
-            {
-                
-                
-                offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]);
-                Console.WriteLine("offset_nossle" + offset_nossle[tool_active].p_xyz);
-                Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
-                offset_frame = new StepperFrame(offset_nossle[tool_active].p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
-
-                Console.WriteLine("offset_frame:" + offset_frame.p_xyz );
-            }
-
-            else if(cur_coordinate_system == coordinate_system.MANUAL)
-            {
-                offset_frame.p_xyz = offset_zero_pos[tool_active].p_xyz.Clone();
-            }
-            else if (cur_coordinate_system == coordinate_system.INTERNAL)
-            {
-                offset_frame.p_xyz = offset_internal.p_xyz;
-            }
-            else if (cur_coordinate_system == coordinate_system.CURRENT)
-            {
-                offset_frame.p_xyz = cur_frame.p_xyz.Clone();
-            }
-        }
-
-        public void start_alternate_prog(StepperFrame[] prog_cur)
-        {
-            comp_offset();
-           
-            var offs = cur_frame.clone();
-            offs.p_xyz -= offset_frame.p_xyz;
-            
-            alternately_commands = StepperFrame.prepare_alternate_g_code_to_load(prog_cur,ref printer, offset_frame, offs).ToList();
-            cur_alternately_line = 0;
-
-            prog_state = programm_state.ALTERNATELY;
-
-            consider_wait_all_steps_kinem = 0;
-            consider_all_steps1 = 0;
-            consider_prog_done = 0;
-            consider_wait_en = 0;
-            consider_wait_term = 0;
-
-            consider_all_steps2 = 0;
-        }
-
-        public void start_main_alternate_prog(StepperFrame[] prog_cur)
-        {
-            main_alternately_commands = StepperFrame.prepare_main_alternate_g_code_to_load(prog_cur);
-            main_alternately_commands_counter = 0;
-            main_alternately_commands_exec = true;  
-        }
+        
 
 
         public void load_commands(string[] coms)
@@ -409,20 +273,18 @@ namespace tcp_to_udp
             else if (command.Contains("M594"))
             {
                 var val = val_from_command(com_board);
-                string_is_ending = val;
-                tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
+
             }
             else if (command.Contains("M595"))
             {
                 var val = val_from_command(com_board);
-                pound_is_ending = val;
-                tcp_client_main.send_mes(device_numb + "" + string_is_ending + "" + pound_is_ending);
+
             }
 
             else if (command.Contains("M596")) // prog load
             {
                 var com_re = com_board.Replace("M596 ", "").Trim();
-                prog_orig_commands.Add(com_re);
+                printer.prog_orig_commands.Add(com_re);
 
             }
 
@@ -432,60 +294,60 @@ namespace tcp_to_udp
                 Console.WriteLine("M597 val: " + val);
                 if (val == 0)
                 {
-                    var frames_xyz_list = StepperFrame.convert_g_code_to_stepperframes(prog_orig_commands.ToArray(), printer).ToList();
+                    var frames_xyz_list = printer.convert_g_code_to_stepperframes(printer.prog_orig_commands.ToArray(), printer).ToList();
                     if (frames_xyz_list != null)
                     {
-                        start_main_alternate_prog(frames_xyz_list.ToArray());
+                        printer.start_main_alternate_prog(frames_xyz_list.ToArray());
                     }
 
 
                 }
                 else if (val == 1)
                 {
-                    prog_state = programm_state.PAUSE;
+                    printer.prog_state = StepperPrinter.programm_state.PAUSE;
                 }
                 else
                 {
                     //load_commands(new string[] { "num1 M588 A0" });
                     load_commands(new string[] { "num1 M589 S" });
-                    prog_state = programm_state.STOP;
+                    printer.prog_state = StepperPrinter.programm_state.STOP;
                 }
             }
             else if (command.Contains("M598")) // prog clear
             {
-                prog_commands = new List<StepperFrame>();
-                prog_orig_commands = new List<string>();
+                printer.prog_commands = new List<StepperFrame>();
+                printer.prog_orig_commands = new List<string>();
             }
             else if (command.Contains("M610"))//set jog vel
             {
                 var val = val_from_command_d(com_board);
-                jog_xyz_vel = val;
+                printer.jog_xyz_vel = val;
             }
 
-            else if (command.Contains("M611") && all_steps_kinem == 0)//jog 
+            else if (command.Contains("M611") && printer.all_steps_kinem == 0)//jog 
             {
 
                 var val = val_from_command(com_board);
                 var jog_orig = new List<StepperFrame>();
                 var fr_cur = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
-                fr_cur.vel = jog_xyz_vel;
-                fr_cur.p_xyz -= offset_frame.p_xyz;
+                fr_cur.vel = printer.jog_xyz_vel;
                 jog_orig.Add(fr_cur);
                 var fr_jog = fr_cur.clone();
-                fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, jog_len);
+                fr_jog.p_xyz = fr_jog.p_xyz.add_mask(val, printer.jog_len);
                 jog_orig.Add(fr_jog);
 
-                cur_coordinate_system = coordinate_system.CURRENT;
+                printer.cur_coordinate_system = StepperPrinter.coordinate_system.CURRENT;
                 //offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
-                start_main_alternate_prog(jog_orig.ToArray());
+                printer.start_main_alternate_prog(jog_orig.ToArray());
 
 
             }
             else if (command.Contains("M612"))//set_zero
             {
                 var val = vals_from_command_d(com_board,8);
-                offset_zero_pos[tool_active] = cur_frame.clone();
+                //printer.offset_zero_pos[printer.tool_active] = 
 
+                var cur_fr = printer.cur_frame.clone();
                 var x = val[0];
                 var y = val[1];
                 var z = val[2];
@@ -496,13 +358,11 @@ namespace tcp_to_udp
                 var z_en = val[6];
                 var e_en = val[7];
 
-                if (x_en == 1) offset_frame.p_xyz.x -= x; 
-                if (y_en == 1) offset_frame.p_xyz.y -= y;
-                if (z_en == 1) offset_frame.p_xyz.z -= z;
+                if (x_en == 1) printer.offset_zero_pos[printer.tool_active].p_xyz.x = cur_fr.p_xyz.x - x; 
+                if (y_en == 1) printer.offset_zero_pos[printer.tool_active].p_xyz.y = cur_fr.p_xyz.y - y;
+                if (z_en == 1) printer.offset_zero_pos[printer.tool_active].p_xyz.z = cur_fr.p_xyz.z - z;
 
-                //if (e_en == 1) printer.abs_pos_extr = e;
-
-                //exec_main_prog(new string[] { "num1 M587 I0 " });
+                printer.tool_calibrated_manual[printer.tool_active] = true;
 
             }
             else if (command.Contains("M613"))//
@@ -530,18 +390,18 @@ namespace tcp_to_udp
 
                 var frames_xyz_list = new StepperFrame[]
                 {
-                                        new StepperFrame(cur_frame.p_xyz-offset_frame.p_xyz,0,jog_xyz_vel),
-                                        new StepperFrame(new Point3d_GL(),0,jog_xyz_vel),
+                                        new StepperFrame(printer.cur_frame.p_xyz-printer.offset_frame.p_xyz,0,printer.jog_xyz_vel),
+                                        new StepperFrame(new Point3d_GL(),0,printer.jog_xyz_vel),
                 };
-                start_main_alternate_prog(frames_xyz_list.ToArray());
+                printer.start_main_alternate_prog(frames_xyz_list.ToArray());
 
             }
             else if (command.Contains("M616"))//remember_p 
             {
                 var val = val_from_command(com_board);
-                if (val >= 0 && val < bed_calib_ps.Length)
+                if (val >= 0 && val < printer.bed_calib_ps.Length)
                 {
-                    bed_calib_ps[val] = cur_frame;
+                    printer.bed_calib_ps[val] = printer.cur_frame;
                 }
 
                 if (val < 0)
@@ -549,12 +409,12 @@ namespace tcp_to_udp
                     printer.bed_calib_vec = new Point3d_GL(0, 0, 1);
                 }
 
-                if (val > bed_calib_ps.Length)
+                if (val > printer.bed_calib_ps.Length)
                 {
 
-                    var p1 = bed_calib_ps[0].p_xyz;
-                    var p2 = bed_calib_ps[1].p_xyz;
-                    var p3 = bed_calib_ps[2].p_xyz;
+                    var p1 = printer.bed_calib_ps[0].p_xyz;
+                    var p2 = printer.bed_calib_ps[1].p_xyz;
+                    var p3 = printer.bed_calib_ps[2].p_xyz;
                     var vecn = new Flat3d_GL(p1, p2, p3).n;
                     if (Math.Abs(vecn.z) > 0.5)
                     {
@@ -594,29 +454,30 @@ namespace tcp_to_udp
 
 
                 //i3 vert, i4 rot, 
-                cur_coordinate_system = coordinate_system.INTERNAL;
-                auto_calibr = false;
+                printer.cur_coordinate_system = StepperPrinter.coordinate_system.INTERNAL; 
+                printer.offset_frame = printer.comp_offset(printer.cur_coordinate_system);
                 StepperFrame[] prog_cur = null;
-                prog_cur = StepperPrinter.gen_change_prog(val, settins_string, cur_frame.clone());
+                prog_cur = StepperPrinter.gen_change_prog(val, printer.settins_string, printer.cur_frame.clone(),printer.safe_z_internal);
                 
-                if(prog_cur!=null)  start_alternate_prog(prog_cur);
+                if(prog_cur!=null) printer.start_alternate_prog(prog_cur);
             }
 
             else if (command.Contains("M620")) // take i tool
             {
-                cur_coordinate_system = coordinate_system.INTERNAL;
+                printer.cur_coordinate_system = StepperPrinter.coordinate_system.INTERNAL;
+                printer.offset_frame = printer.comp_offset(printer.cur_coordinate_system);
                 var prog_cur = new List<StepperFrame>();
 
                 var val = val_from_command(com_board);
                 var tool_dest = val;
                 
-                var manip_left = tool_inds[0];
-                var manip_right = tool_inds[1];
+                var manip_left = printer.tool_inds[0];
+                var manip_right = printer.tool_inds[1];
 
-                var last_frame = cur_frame.clone();
+                var last_frame = printer.cur_frame.clone();
 
-                if (manip_left != tool_dest && manip_right != tool_dest && tool_active != tool_dest) Console.WriteLine("Вставте экструдер: " + tool_dest);
-                if (tool_active != 0)
+                if (manip_left != tool_dest && manip_right != tool_dest && printer.tool_active != tool_dest) Console.WriteLine("Вставте экструдер: " + tool_dest);
+                if (printer.tool_active != 0)
                 {
                     int prog_num_give = -1;
                     if (manip_left == 0)
@@ -629,16 +490,16 @@ namespace tcp_to_udp
                     }
                     if(prog_num_give<=0)
                     {
-                        Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
-                        main_alternately_commands_exec = false;
-                        prog_state = programm_state.STOP;
+                        Console.WriteLine("Нет свободного места: Текущий экструдер: " + printer.tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
+                        printer.main_alternately_commands_exec = false;
+                        printer.prog_state = StepperPrinter.programm_state.STOP;
                           
                         return;
 
                     }
                     else
                     {
-                        prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, settins_string, last_frame.clone()));
+                        prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, printer.settins_string, last_frame.clone(), printer.safe_z_internal));
                         last_frame = StepperFrame.find_last_kinematic_frame(prog_cur.ToArray());
                         if (last_frame == null) return;
                     }
@@ -654,23 +515,25 @@ namespace tcp_to_udp
                     prog_num_take = 2;
                 }
                 
-                prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, settins_string, last_frame.clone()));
+                prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, printer.settins_string, last_frame.clone(), printer.safe_z_internal));
 
                 if (prog_cur != null)
                 {
-                    tool_active = tool_dest;
-                    start_alternate_prog(prog_cur.ToArray());
+                    printer.tool_active = tool_dest;
+                    printer.start_alternate_prog(prog_cur.ToArray());
                 }
                 
             }
 
             else if (command.Contains("M621")) //drop active tool
             {
+                printer.cur_coordinate_system = StepperPrinter.coordinate_system.INTERNAL;
+                printer.offset_frame = printer.comp_offset(printer.cur_coordinate_system);
                 var prog_cur = new List<StepperFrame>();
-                var last_frame = cur_frame.clone();
+                var last_frame = printer.cur_frame.clone();
                 int prog_num_give = -1;
-                var manip_left = tool_inds[0];
-                var manip_right = tool_inds[1];
+                var manip_left = printer.tool_inds[0];
+                var manip_right = printer.tool_inds[1];
                 if (manip_left == 0)
                 {
                     prog_num_give = 1;
@@ -681,15 +544,15 @@ namespace tcp_to_udp
                 }
                 if (prog_num_give <= 0)
                 {
-                    Console.WriteLine("Нет свободного места: Текущий экструдер: " + tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
-                    main_alternately_commands_exec = false;
-                    prog_state = programm_state.STOP;
+                    Console.WriteLine("Нет свободного места: Текущий экструдер: " + printer.tool_active + "; Манипулятор левый: " + manip_left + "; Манипулятор правый: " + manip_right);
+                    printer.main_alternately_commands_exec = false;
+                    printer.prog_state = StepperPrinter.programm_state.STOP;
                     return;
                 }
                 else
                 {
-                    prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, settins_string, last_frame.clone()));
-                    if (prog_cur != null) start_alternate_prog(prog_cur.ToArray());
+                    prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_give, printer.settins_string, last_frame.clone(), printer.safe_z_internal) );
+                    if (prog_cur != null) printer.start_alternate_prog(prog_cur.ToArray());
                 }
             }
 
@@ -704,28 +567,28 @@ namespace tcp_to_udp
             {
 
                 var prog_cur = new List<StepperFrame>();
-                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + settins_string.servo_open_val, false));
-                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - settins_string.servo_open_val), false));
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_change_pos + " L", false));
-                prog_cur.Add(new StepperFrame(2, 587, "I2 P" + settins_string.lift_up_val + " L", false));
-                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + settins_string.servo_close_val, false));
-                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - settins_string.servo_close_val), false));
+                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_open_val, false));
+                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_open_val), false));
+                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_change_pos + " L", false));
+                prog_cur.Add(new StepperFrame(2, 587, "I2 P" + printer.settins_string.lift_up_val + " L", false));
+                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_close_val, false));
+                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_close_val), false));
                 prog_cur.Add(new StepperFrame(2, 587, "I2 H"));
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_work_pos + " L", false));
-                start_alternate_prog(prog_cur.ToArray());
+                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_work_pos + " L", false));
+                printer.start_alternate_prog(prog_cur.ToArray());
             }
 
             else if (command.Contains("M624"))//set give tablet
             {
 
                 var prog_cur = new List<StepperFrame>();
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_change_pos + " L", false));
-                prog_cur.Add(new StepperFrame(2, 587, "I2 P" + settins_string.lift_up_val + " L", false));
-                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + settins_string.servo_open_val, false));
-                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - settins_string.servo_open_val), false));
+                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_change_pos + " L", false));
+                prog_cur.Add(new StepperFrame(2, 587, "I2 P" + printer.settins_string.lift_up_val + " L", false));
+                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_open_val, false));
+                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_open_val), false));
                 prog_cur.Add(new StepperFrame(2, 587, "I2 H", false));
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + settins_string.table_open_pos + " L", false));
-                start_alternate_prog(prog_cur.ToArray());
+                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_open_pos + " L", false));
+                printer.start_alternate_prog(prog_cur.ToArray());
             }
             else if (command.Contains("M630"))//home manipulators
             {
@@ -741,46 +604,45 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(2, 587, "I5 H", false, 0));
                 prog_cur.Add(new StepperFrame(2, 587, "I6 H", false));
 
-                prog_cur.Add(new StepperFrame(2, 587, "I4 P" + settins_string.take_left_manip_rot[4] + " L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I4 P" + printer.settins_string.take_left_manip_rot[4] + " L", false, 0));
                 prog_cur.Add(new StepperFrame(2, 587, "I3 P100 L", false, 0));
-                prog_cur.Add(new StepperFrame(2, 587, "I6 P" + settins_string.take_right_manip_rot[4] + " L", false, 0));
+                prog_cur.Add(new StepperFrame(2, 587, "I6 P" + printer.settins_string.take_right_manip_rot[4] + " L", false, 0));
                 prog_cur.Add(new StepperFrame(2, 587, "I5 P100 L", false));
 
-                start_alternate_prog(prog_cur.ToArray());
+                printer.start_alternate_prog(prog_cur.ToArray());
 
             }
             else if (command.Contains("M631"))//set xy_calibrate
             {
-                offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
-                auto_calibr = false;
-                double save_dist_nossle = 10;
-                calibrate_nossle_stage_counter = 0;
-
-                calibrating_nossle = true;
-                var prog_cur = new List<StepperFrame>();
-                var cur_fr_dest = cur_frame.clone();
-                cur_fr_dest.vel = jog_xyz_vel;
-                prog_cur.Add(cur_fr_dest.clone());
-                if (cur_fr_dest.p_xyz.z < settins_string.calibrate_nossle_z[0] + save_dist_nossle)
+                if (!printer.tool_calibrated_auto[printer.tool_active])
                 {
-                    cur_fr_dest.p_xyz.z += save_dist_nossle;
+                    printer.offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
+                    double save_dist_nossle = 10;
+                    printer.calibrate_nossle_stage_counter = 0;
+
+                    printer.calibrating_nossle = true;
+                    var prog_cur = new List<StepperFrame>();
+                    var cur_fr_dest = printer.cur_frame.clone();
+                    cur_fr_dest.vel = printer.jog_xyz_vel;
+                    prog_cur.Add(cur_fr_dest.clone());
+                    if (cur_fr_dest.p_xyz.z < printer.settins_string.calibrate_nossle_z[0] + save_dist_nossle)
+                    {
+                        cur_fr_dest.p_xyz.z += save_dist_nossle;
+                    }
+                    //add offset for different nossle    [cur_nossle]
+                    prog_cur.Add(cur_fr_dest.clone());
+                    prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[0], printer.settins_string.calibrate_nossle_y[0], printer.settins_string.calibrate_nossle_z[0] + save_dist_nossle), 0, printer.jog_xyz_vel));
+                    prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[0], printer.settins_string.calibrate_nossle_y[0], printer.settins_string.calibrate_nossle_z[0]), 0, printer.jog_xyz_vel));
+                    printer.start_alternate_prog(prog_cur.ToArray());
+                    printer.calibrate_nossle_stage_counter = 1;
+                    printer.calibrate_nossle_frames = new List<StepperFrame>();
+                    Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                 }
-                //add offset for different nossle    [cur_nossle]
-                prog_cur.Add(cur_fr_dest.clone());
-                prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0] + save_dist_nossle), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, jog_xyz_vel));
-                start_alternate_prog(prog_cur.ToArray());
-                calibrate_nossle_stage_counter = 1;
-                calibrate_nossle_frames = new List<StepperFrame>();
-                Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
-
-
             }
             else if (command.Contains("M632"))
             {
                 var val = val_from_command(com_board);
-                if (val == 1) auto_calibr = true;
-                if (val == 0) auto_calibr = false;
+                
 
             }
 
@@ -800,11 +662,11 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(1, 587, "I6 H", false));
 
                 prog_cur.Add(new StepperFrame(1, 587, "I3 P-50 L", false, 0));
-                prog_cur.Add(new StepperFrame(1, 587, "I4 P"+settins_string.osc_rot_start_pos1+" L", false, 0));
+                prog_cur.Add(new StepperFrame(1, 587, "I4 P"+ printer.settins_string.osc_rot_start_pos1+" L", false, 0));
                 prog_cur.Add(new StepperFrame(1, 587, "I5 P-50 L", false, 0));
-                prog_cur.Add(new StepperFrame(1, 587, "I6 P"+settins_string.osc_rot_start_pos2+" L", false));
+                prog_cur.Add(new StepperFrame(1, 587, "I6 P"+ printer.settins_string.osc_rot_start_pos2+" L", false));
 
-                start_alternate_prog(prog_cur.ToArray());
+                printer.start_alternate_prog(prog_cur.ToArray());
 
             }
 
@@ -819,11 +681,11 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(0, 637, "1"));
                 //prog_cur.Add(new StepperFrame(0, 638, "-41.8732 67.1863 -394.5207"));
                 //prog_cur.Add(new StepperFrame(0, 632, "1"));
-                prog_cur.Add(new StepperFrame(new Point3d_GL(0,0,50),0,jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 10, 50), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(new Point3d_GL(10, 10, 50), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(new Point3d_GL(10, 0, 50), 0, jog_xyz_vel));
-                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, 50), 0, jog_xyz_vel));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0,0,50),0, printer.jog_xyz_vel));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 10, 50), 0, printer.jog_xyz_vel));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(10, 10, 50), 0, printer.jog_xyz_vel));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(10, 0, 50), 0, printer.jog_xyz_vel));
+                prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, 50), 0, printer.jog_xyz_vel));
                 prog_cur.Add(new StepperFrame(0, 619, "1"));
 
 
@@ -857,7 +719,7 @@ namespace tcp_to_udp
                 prog_cur.Add(new StepperFrame(new Point3d_GL(0, 0, -292.0), 0, 2));
                 prog_cur.Add(new StepperFrame(0, 0, 0, 0, 1, 0));*/
 
-                start_main_alternate_prog(prog_cur.ToArray());
+                printer.start_main_alternate_prog(prog_cur.ToArray());
 
             }
 
@@ -865,14 +727,14 @@ namespace tcp_to_udp
             else if (command.Contains("M636"))
             {
                 var val = val_from_command(com_board);
-                cur_nossle_type = val;
+                printer.cur_nossle_type = val;
 
             }
 
             else if (command.Contains("M637"))
             {
                 var val = val_from_command(com_board);
-                cur_plate_type = val;
+                printer.cur_plate_type = val;
 
             }
 
@@ -880,13 +742,13 @@ namespace tcp_to_udp
             else if (command.Contains("M638"))
             {
                 var val = vals_from_command_d(com_board, 3);
-                offset_nossle[tool_active].p_xyz = new Point3d_GL(val[0], val[1], val[2]);
+                printer.offset_nossle[printer.tool_active].p_xyz = new Point3d_GL(val[0], val[1], val[2]);
 
             }
             else if (command.Contains("M639"))
             {
                 var val = val_from_command(com_board);
-                tool_active = val;
+                printer.tool_active = val;
 
             }
             else if (command.Contains("M640"))
@@ -894,32 +756,58 @@ namespace tcp_to_udp
                 var val = val_from_command(com_board);
                 switch(val)
                 {
-                    case 0: cur_coordinate_system = coordinate_system.MANUAL; break;
-                    case 1: cur_coordinate_system = coordinate_system.AUTO; break;
-                    case 2: cur_coordinate_system = coordinate_system.CURRENT; break;
-                    case 3: cur_coordinate_system = coordinate_system.INTERNAL; break;
+                    case 0: printer.cur_coordinate_system = StepperPrinter.coordinate_system.MANUAL; break;
+                    case 1: printer.cur_coordinate_system = StepperPrinter.coordinate_system.AUTO; break;
+                    case 2: printer.cur_coordinate_system = StepperPrinter.coordinate_system.CURRENT; break;
+                    case 3: printer.cur_coordinate_system = StepperPrinter.coordinate_system.INTERNAL; break;
                 }
-
+            }
+            else if (command.Contains("M641"))
+            {
+                var val = val_from_command(com_board);
+                switch (val)
+                {
+                    case 0: printer.dest_coordinate_system = StepperPrinter.coordinate_system.MANUAL; printer.cur_coordinate_system = StepperPrinter.coordinate_system.MANUAL; break;
+                    case 1: printer.dest_coordinate_system = StepperPrinter.coordinate_system.AUTO; printer.cur_coordinate_system = StepperPrinter.coordinate_system.AUTO; break;
+                }
+            }
+            else if (command.Contains("M642"))
+            {
+                var val = val_from_command(com_board);
+                switch (val)
+                {
+                    case 0: printer.table_out = false; break;
+                    case 1: printer.table_out = true; break;
+                }
+            }
+            else if (command.Contains("M643"))
+            {
+                var val = val_from_command(com_board);
+                switch (val)
+                {
+                    case 0: printer.cover_up = false; break;
+                    case 1: printer.cover_up = true; break;
+                }
             }
             else if (command.Contains("M700"))//set all stop
             {
-                prog_state = programm_state.STOP;
+                printer.prog_state =  StepperPrinter.programm_state.STOP;
                 _TCPserver1.pushBuffer_in("num1 M589 S" + "\n");
                 _TCPserver1.pushBuffer_in("num2 M589 S" + "\n");
-                calibrating_nossle = false;
-                main_alternately_commands_counter = main_alternately_commands.Count + 1;
+                printer.calibrating_nossle = false;
+                printer.main_alternately_commands_counter = printer.main_alternately_commands.Count + 1;
             }
 
             else if (command.Contains("M701"))//stop condition
             {
                 var vals = vals_from_command(com_board, 6);
 
-                consider_wait_all_steps_kinem = vals[0];
-                consider_all_steps1 = vals[1];
-                consider_all_steps2 = vals[2];
-                consider_prog_done = vals[3];
-                consider_wait_en = vals[4];
-                consider_wait_term = vals[5];
+                printer.consider_wait_all_steps_kinem = vals[0];
+                printer.consider_all_steps1 = vals[1];
+                printer.consider_all_steps2 = vals[2];
+                printer.consider_prog_done = vals[3];
+                printer.consider_wait_en = vals[4];
+                printer.consider_wait_term = vals[5];
 
 
             }
@@ -1038,7 +926,7 @@ namespace tcp_to_udp
                         if (!host_send)
                         {
                             //Console.WriteLine(dtime_ms);
-                            var mes_serv = device_numb + "" + string_is_ending + "" + pound_is_ending;
+                            //var mes_serv = device_numb + "" + string_is_ending + "" + pound_is_ending;
                             //Console.WriteLine("send server " + mes_serv);
                             // tcp_client_main.send_mes(mes_serv);
                             host_send = true;
@@ -1064,12 +952,19 @@ namespace tcp_to_udp
                         if (_TCPserver1.connected)
                         {
                             //_TCPserver1.send_mes(mes);
-                            var frame_out = cur_frame.p_xyz.Clone();
+                            var frame_out = printer.cur_frame.p_xyz.Clone();
                             //frame_out.z -= printer.comp_off_bed(frame_out);
-                            frame_out -= offset_frame.p_xyz;
+                            
                             var tools = "00000";
-                            if (tool_inds.Length == 4) tools = tool_inds[0] + "" + tool_inds[1] + "" + tool_inds[2] + "" + tool_inds[3] + "" + tool_active;
-                            _TCPserver1.pushBuffer(mes + " " + frame_out.ToString() +" "+ tools + "\n");
+                            if (printer.tool_inds.Length == 4) tools = printer.tool_inds[0] + "" + printer.tool_inds[1] + "" + printer.tool_inds[2] + "" + printer.tool_inds[3] + "" + printer.tool_active;
+
+
+
+                            var frame_out_cur = frame_out - printer.offset_frame.p_xyz;
+                            var frame_out_mash = frame_out - printer.comp_offset(StepperPrinter.coordinate_system.INTERNAL).p_xyz;
+                            var frame_out_tool = frame_out - printer.comp_offset(printer.dest_coordinate_system).p_xyz;
+
+                            _TCPserver1.pushBuffer(mes + " " + tools + " " + frame_out_cur.ToString() + " " + frame_out.ToString() + " " + frame_out.ToString() + "\n");
                         }
                         //Console.WriteLine(mes);
                         // Console.WriteLine("len1: " + coms1.Count);
@@ -1086,11 +981,11 @@ namespace tcp_to_udp
 
 
                                 if (vars_from_mes[4].Length == 5)
-                                {                                    
-                                    all_steps1 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
-                                    all_steps_kinem = Convert.ToInt32(vars_from_mes[4][1]) - 48;
-                                    ring_buf_en = Convert.ToInt32(vars_from_mes[4][2]) - 48;
-                                    wait_en = Convert.ToInt32(vars_from_mes[4][3]) - 48;
+                                {
+                                    printer.all_steps1 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
+                                    printer.all_steps_kinem = Convert.ToInt32(vars_from_mes[4][1]) - 48;
+                                    printer.ring_buf_en = Convert.ToInt32(vars_from_mes[4][2]) - 48;
+                                    printer.wait_en = Convert.ToInt32(vars_from_mes[4][3]) - 48;
 
                                     //Console.WriteLine("1:" + vars_from_mes[4]);
                                 }
@@ -1106,9 +1001,9 @@ namespace tcp_to_udp
 
 
                                     var nossle_calib_vals = vars_from_mes[10];
-                                    calibr_x = Convert.ToInt32(nossle_calib_vals[0]) - 48;
-                                    calibr_y = Convert.ToInt32(nossle_calib_vals[1]) - 48;
-                                    calibr_z = Convert.ToInt32(nossle_calib_vals[2]) - 48;
+                                    printer.calibr_x = Convert.ToInt32(nossle_calib_vals[0]) - 48;
+                                    printer.calibr_y = Convert.ToInt32(nossle_calib_vals[1]) - 48;
+                                    printer.calibr_z = Convert.ToInt32(nossle_calib_vals[2]) - 48;
 
                                     var tool_recogn_vals = vars_from_mes[11];
                                     if (tool_recogn_vals.Length == 8)
@@ -1124,18 +1019,18 @@ namespace tcp_to_udp
                                         var tool2_0 = Convert.ToInt32(tool_recogn_vals[6]) - 48;
                                         var tool3_0 = Convert.ToInt32(tool_recogn_vals[7]) - 48;
 
-                                        tool_inds = new int[] { 0, 0, 0, 0 };
+                                        printer.tool_inds = new int[] { 0, 0, 0, 0 };
 
-                                        if (tool0_0 == 0) tool_inds[0] = 1;
-                                        if (tool0_1 == 0) tool_inds[0] = 2;
-                                        if (tool0_2 == 0) tool_inds[0] = 3;
+                                        if (tool0_0 == 0) printer.tool_inds[0] = 1;
+                                        if (tool0_1 == 0) printer.tool_inds[0] = 2;
+                                        if (tool0_2 == 0) printer.tool_inds[0] = 3;
 
-                                        if (tool1_0 == 0) tool_inds[1] = 1;
-                                        if (tool1_1 == 0) tool_inds[1] = 2;
-                                        if (tool1_2 == 0) tool_inds[1] = 3;
+                                        if (tool1_0 == 0) printer.tool_inds[1] = 1;
+                                        if (tool1_1 == 0) printer.tool_inds[1] = 2;
+                                        if (tool1_2 == 0) printer.tool_inds[1] = 3;
 
-                                        if (tool2_0 == 0) tool_inds[2] = 1;
-                                        if (tool3_0 == 0) tool_inds[3] = 1;
+                                        if (tool2_0 == 0) printer.tool_inds[2] = 1;
+                                        if (tool3_0 == 0) printer.tool_inds[3] = 1;
 
 
                                     }
@@ -1152,26 +1047,26 @@ namespace tcp_to_udp
                                     }
 
 
-                                    cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[7] };
+                                    printer.cur_pos = new long[] { cur_poses[0], cur_poses[1], cur_poses[2], cur_poses[7] };
 
-                                    cur_frame = printer.solve_fk(cur_pos);
-                                    
-                                    
+                                    printer.cur_frame = printer.solve_fk(printer.cur_pos);
+
+
 
                                     //Console.WriteLine(cur_frame.e);
-                                    cur_frame.p_xyz.z -= printer.comp_off_bed(cur_frame.p_xyz);
+                                    printer.cur_frame.p_xyz.z -= printer.comp_off_bed(printer.cur_frame.p_xyz);
                                     /**/
                                 }
 
 
                                 var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0);
                                 var printer_work =
-                                    (consider_all_steps1 == 1 && all_steps1 == 1) ||
-                                    (consider_all_steps2 == 1 && all_steps2 == 1) ||
-                                    (consider_wait_all_steps_kinem == 1 && all_steps_kinem == 1) ||
-                                    (consider_prog_done == 1 && ring_buf_en == 1) ||
-                                    (consider_wait_en == 1 && wait_en == 1) ||
-                                    (consider_wait_term == 1 && wait_term == 1);
+                                    (printer.consider_all_steps1 == 1 && printer.all_steps1 == 1) ||
+                                    (printer.consider_all_steps2 == 1 && printer.all_steps2 == 1) ||
+                                    (printer.consider_wait_all_steps_kinem == 1 && printer.all_steps_kinem == 1) ||
+                                    (printer.consider_prog_done == 1 && printer.ring_buf_en == 1) ||
+                                    (printer.consider_wait_en == 1 && printer.wait_en == 1) ||
+                                    (printer.consider_wait_term == 1 && printer.wait_term == 1);
 
 
                                 //prog_work-----------------------------------------------------------------
@@ -1203,23 +1098,23 @@ namespace tcp_to_udp
                                 }*/
 
                                 //alternately work-----------------------------------------------------------------
-                                if (prog_state == programm_state.ALTERNATELY)
+                                if (printer.prog_state ==  StepperPrinter.programm_state.ALTERNATELY)
                                 {
                                     
                                     //Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
                                     //Console.WriteLine("con: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
                                     if (commands_load && !printer_work)
                                     {
-                                        if (cur_alternately_line < alternately_commands.Count)
+                                        if (printer.cur_alternately_line < printer.alternately_commands.Count)
                                         {
 
-                                            var cur_alternately_line_internal = alternately_commands[cur_alternately_line].line_number;
-                                            var printer_ready_kinem = ((cur_alternately_line_internal + safe_len_send_val < cur_prog_line_board || cur_alternately_line_internal < lookup_buf - safe_len_send_val));// && cur_alternately_line_internal < stop_len
+                                            var cur_alternately_line_internal = printer.alternately_commands[printer.cur_alternately_line].line_number;
+                                            var printer_ready_kinem = ((cur_alternately_line_internal + printer.safe_len_send_val < cur_prog_line_board || cur_alternately_line_internal < printer.lookup_buf - printer.safe_len_send_val));// && cur_alternately_line_internal < stop_len
 
-                                            if (printer_ready_kinem || !alternately_commands[cur_alternately_line].kinematic)
+                                            if (printer_ready_kinem || !printer.alternately_commands[printer.cur_alternately_line].kinematic)
                                             {
-                                                if (alternately_commands[cur_alternately_line].reset_extr) printer.abs_pos_extr = 0;
-                                                var com = alternately_commands[cur_alternately_line].get_command(printer);
+                                                if (printer.alternately_commands[printer.cur_alternately_line].reset_extr) printer.abs_pos_extr = 0;
+                                                var com = printer.alternately_commands[printer.cur_alternately_line].get_command(printer);
 
                                                 //Console.WriteLine("alt: "+cur_alternately_line+"/" + alternately_commands.Count + " " + com);
                                                 //Console.WriteLine("cur: "+all_steps_kinem + " " + all_steps1 + " " + all_steps2 + " " + ring_buf_en + " " + wait_en + " " + wait_term);
@@ -1228,17 +1123,17 @@ namespace tcp_to_udp
                                                
                                                 load_commands(new string[] { com });
 
-                                                
-                                                consider_all_steps1 = alternately_commands[cur_alternately_line].consider_all_steps1;
-                                                consider_all_steps2 = alternately_commands[cur_alternately_line].consider_all_steps2;
-                                                consider_wait_all_steps_kinem = alternately_commands[cur_alternately_line].consider_wait_all_steps_kinem;
-                                                consider_wait_en = alternately_commands[cur_alternately_line].consider_wait_en;
-                                                consider_wait_term = alternately_commands[cur_alternately_line].consider_wait_term;
-                                                consider_prog_done = alternately_commands[cur_alternately_line].consider_prog_done;
-                                                //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
-                                                cur_alternately_line++;
 
-                                                if(consider_prog_done == 1)
+                                                printer.consider_all_steps1 = printer.alternately_commands[printer.cur_alternately_line].consider_all_steps1;
+                                                printer.consider_all_steps2 = printer.alternately_commands[printer.cur_alternately_line].consider_all_steps2;
+                                                printer.consider_wait_all_steps_kinem = printer.alternately_commands[printer.cur_alternately_line].consider_wait_all_steps_kinem;
+                                                printer.consider_wait_en = printer.alternately_commands[printer.cur_alternately_line].consider_wait_en;
+                                                printer.consider_wait_term = printer.alternately_commands[printer.cur_alternately_line].consider_wait_term;
+                                                printer.consider_prog_done = printer.alternately_commands[printer.cur_alternately_line].consider_prog_done;
+                                                //Console.WriteLine("set: " + consider_wait_all_steps_kinem + " " + consider_all_steps1 + " " + consider_all_steps2 + " " + consider_prog_done + " " + consider_wait_en + " " + consider_wait_term);
+                                                printer.cur_alternately_line++;
+
+                                                if(printer.consider_prog_done == 1)
                                                 {
                                                     //Console.WriteLine("set onsider_prog_done==1");
                                                 }
@@ -1253,7 +1148,7 @@ namespace tcp_to_udp
                                             /*Console.WriteLine("consider_prog_done == 1 && ring_buf_en == 1 " + (consider_prog_done == 1 && ring_buf_en == 1));
                                             Console.WriteLine("printer_work: " + printer_work);
                                             Console.WriteLine("STOP; ring_buf_en:" + ring_buf_en+" "+ alternately_commands[cur_alternately_line-1].consider_prog_done+" "+(cur_alternately_line - 1));*/
-                                            prog_state = programm_state.STOP;
+                                            printer.prog_state = StepperPrinter.programm_state.STOP;
                                         }
                                     }
                                         
@@ -1266,23 +1161,23 @@ namespace tcp_to_udp
 
 
                                 //------
-                                if (main_alternately_commands_exec && prog_state == programm_state.STOP && commands_load && !printer_work && main_alternately_commands_counter < main_alternately_commands.Count && !calibrating_nossle)
+                                if (printer.main_alternately_commands_exec && printer.prog_state == StepperPrinter.programm_state.STOP && commands_load && !printer_work && printer.main_alternately_commands_counter < printer.main_alternately_commands.Count && !printer.calibrating_nossle)
                                 {
                                     {
-                                        if (main_alternately_commands[main_alternately_commands_counter][0].plate_num == 0)
+                                        if (printer.main_alternately_commands[printer.main_alternately_commands_counter][0].plate_num == 0)
                                         {
 
-                                            var com = main_alternately_commands[main_alternately_commands_counter][0].get_command(printer);
-                                            Console.WriteLine("main:"+main_alternately_commands_counter + " " + main_alternately_commands.Count + " " + com);
+                                            var com = printer.main_alternately_commands[printer.main_alternately_commands_counter][0].get_command(printer);
+                                            Console.WriteLine("main:"+ printer.main_alternately_commands_counter + " " + printer.main_alternately_commands.Count + " " + com);
                                             exec_main_prog(com);
                                         }
                                         else
                                         {
-                                            cur_frame.e = printer.abs_pos_extr;
-                                            start_alternate_prog(main_alternately_commands[main_alternately_commands_counter].ToArray());
+                                            printer.cur_frame.e = printer.abs_pos_extr;
+                                            printer.start_alternate_prog(printer.main_alternately_commands[printer.main_alternately_commands_counter].ToArray());
                                         }
 
-                                        main_alternately_commands_counter++;
+                                        printer.main_alternately_commands_counter++;
                                     }
 
                                 }
@@ -1297,7 +1192,7 @@ namespace tcp_to_udp
 
 
 
-                                    if (prev_homing - cur_homing == 1)
+                                    if (printer.prev_homing - cur_homing == 1)
                                     {
                                         _TCPserver1.pushBuffer_in("num1 M589 Y80" + "\n");
                                         printer.delta_calibr_counter = 0;
@@ -1305,16 +1200,16 @@ namespace tcp_to_udp
                                         Console.WriteLine("prev_homing - cur_homing == 1");
                                     }
 
-                                    if (prev_delta_calib - cur_delta_calib == 1 && !delta_calib_go_next_p)
+                                    if (printer.prev_delta_calib - cur_delta_calib == 1 && !printer.delta_calib_go_next_p)
                                     {
                                         Console.WriteLine("cur_delta_calib - prev_delta_calib == 1");
                                         if (printer.delta_calibr_counter == 0)
                                         {
-                                            offset_frame = cur_frame;
+                                            printer.offset_frame = printer.cur_frame;
                                         }
 
 
-                                        printer.points_res_calibrate_abc[printer.delta_calibr_counter] = (long[])cur_pos.Clone();
+                                        printer.points_res_calibrate_abc[printer.delta_calibr_counter] = (long[])printer.cur_pos.Clone();
                                         printer.delta_calibr_counter++;
                                         Console.WriteLine("calibr_counter: " + printer.delta_calibr_counter + "/ " + printer.delta_calibr_counter_max);
                                         if (printer.delta_calibr_counter >= printer.delta_calibr_counter_max)
@@ -1324,12 +1219,12 @@ namespace tcp_to_udp
                                             _TCPserver1.pushBuffer_in("num1 M589 X180" + "\n");
                                         }
                                         var delta_orig_commands = new List<string>();
-                                        delta_orig_commands.Add("G1 X" + cur_frame.p_xyz.x + " Y" + cur_frame.p_xyz.y + " Z" + cur_frame.p_xyz.z + " F1200");
+                                        delta_orig_commands.Add("G1 X" + printer.cur_frame.p_xyz.x + " Y" + printer.cur_frame.p_xyz.y + " Z" + printer.cur_frame.p_xyz.z + " F1200");
                                         //delta_orig_commands.Add("G1 Z"+2*printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
                                         delta_orig_commands.Add("G1 Z" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].z);
                                         delta_orig_commands.Add("G1 X" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].x + " Y" + printer.points_for_calibrate_xy[printer.delta_calibr_counter].y);
                                         //prog_orig_commands g code to next point
-                                        var frames_xyz_test = StepperFrame.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
+                                        var frames_xyz_test = printer.convert_g_code_to_stepperframes(delta_orig_commands.ToArray(), printer);
 
 
 
@@ -1361,177 +1256,177 @@ namespace tcp_to_udp
 
                                     }
                                     */
-                                    if (delta_calib_go_next_p && cur_ring_buf_en == 0) Console.WriteLine(cur_prog_line + "/" + max_count_cur_prog);
+                                    if (printer.delta_calib_go_next_p && cur_ring_buf_en == 0) Console.WriteLine(printer.cur_prog_line + "/" + printer.max_count_cur_prog);
 
 
-                                    if (delta_calib_go_next_p && cur_ring_buf_en == 0 && cur_prog_line > max_count_cur_prog - 5)
+                                    if (printer.delta_calib_go_next_p && cur_ring_buf_en == 0 && printer.cur_prog_line > printer.max_count_cur_prog - 5)
                                     {
-                                        Console.WriteLine(delta_calib_go_next_p + " " + cur_ring_buf_en + " " + cur_prog_line + " " + max_count_cur_prog / 2);
+                                        Console.WriteLine(printer.delta_calib_go_next_p + " " + cur_ring_buf_en + " " + printer.cur_prog_line + " " + printer.max_count_cur_prog / 2);
                                         Console.WriteLine("delta_calib_go_next_p && cur_ring_buf_en == 0");
                                         _TCPserver1.pushBuffer_in("num1 M589 Y80" + "\n");
-                                        delta_calib_go_next_p = false;
+                                        printer.delta_calib_go_next_p = false;
                                     }
 
                                 }
 
-                                prev_delta_calib = cur_delta_calib;
-                                prev_homing = cur_homing;
+                                printer.prev_delta_calib = cur_delta_calib;
+                                printer.prev_homing = cur_homing;
                                 // Console.WriteLine(mes);
-                                prev_pos = (long[])cur_pos.Clone();
+                                printer.prev_pos = (long[])printer.cur_pos.Clone();
 
 
                                 //nossle calib_handler-----------------------------------------------------------------
-                                if (calibrating_nossle)
+                                if (printer.calibrating_nossle)
                                 {
                                     //var commands_load = (commands1.Count == 0 && commands2.Count == 0 && _TCPserver1.buffer_out.Length == 0 && ring_buf_en == 0);
                                     //var printer_work = (all_steps1 == 1 || all_steps2 == 1);
 
                                     if(commands_load && !printer_work)
                                     { //----CALIBR_X------------------------------------------------------------------------------------
-                                        if (calibrate_nossle_stage_counter == 1  && prog_state == programm_state.STOP)
+                                        if (printer.calibrate_nossle_stage_counter == 1  && printer.prog_state == StepperPrinter.programm_state.STOP)
                                         {
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "A1", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[1], settins_string.calibrate_nossle_y[1], settins_string.calibrate_nossle_z[1]), 0, calibr_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 2;
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[1], printer.settins_string.calibrate_nossle_y[1], printer.settins_string.calibrate_nossle_z[1]), 0, printer.calibr_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 2;
 
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
 
                                         }
 
-                                        if (calibrate_nossle_stage_counter == 2 && calibr_x == 2)
+                                        if (printer.calibrate_nossle_stage_counter == 2 && printer.calibr_x == 2)
                                         {
-                                            calibrate_nossle_frames.Add(cur_frame.clone());
+                                            printer.calibrate_nossle_frames.Add(printer.cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "A0", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[1], settins_string.calibrate_nossle_y[1], settins_string.calibrate_nossle_z[1]), 0, jog_xyz_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 3;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[1], printer.settins_string.calibrate_nossle_y[1], printer.settins_string.calibrate_nossle_z[1]), 0, printer.jog_xyz_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 3;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                                         }
 
 
-                                        if (calibrate_nossle_stage_counter == 3 && prog_state == programm_state.STOP)// &&prog_state == programm_state.STOP && prog_done == 1
+                                        if (printer.calibrate_nossle_stage_counter == 3 && printer.prog_state == StepperPrinter.programm_state.STOP)// &&prog_state == programm_state.STOP && prog_done == 1
                                         {
                                             //calibrate_nossle_frames.Add(cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "A1", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, calibr_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 4;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[0], printer.settins_string.calibrate_nossle_y[0], printer.settins_string.calibrate_nossle_z[0]), 0, printer.calibr_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 4;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                                         }
 
-                                        if (calibrate_nossle_stage_counter == 4 && calibr_x == 2)
+                                        if (printer.calibrate_nossle_stage_counter == 4 && printer.calibr_x == 2)
                                         {
-                                            calibrate_nossle_frames.Add(cur_frame.clone());
+                                            printer.calibrate_nossle_frames.Add(printer.cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "A0", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, jog_xyz_vel));
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[0], printer.settins_string.calibrate_nossle_y[0], printer.settins_string.calibrate_nossle_z[0]), 0, printer.jog_xyz_vel));
                                             //prog_cur.Add(new StepperFrame((calibrate_nossle_frames[0].p_xyz + calibrate_nossle_frames[1].p_xyz)/2, 0, calibr_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 5;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 5;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                                         }
 
 
 
                                         //----CALIBR_Y------------------------------------------------------------------------------------
 
-                                        if (calibrate_nossle_stage_counter == 5 && prog_state == programm_state.STOP)
+                                        if (printer.calibrate_nossle_stage_counter == 5 && printer.prog_state == StepperPrinter.programm_state.STOP)
                                         {
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "B1", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[2], settins_string.calibrate_nossle_y[2], settins_string.calibrate_nossle_z[2]), 0, calibr_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 6;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[2], printer.settins_string.calibrate_nossle_y[2], printer.settins_string.calibrate_nossle_z[2]), 0, printer.calibr_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 6;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
 
                                         }
 
-                                        if (calibrate_nossle_stage_counter == 6 && calibr_y == 2)
+                                        if (printer.calibrate_nossle_stage_counter == 6 && printer.calibr_y == 2)
                                         {
-                                            calibrate_nossle_frames.Add(cur_frame.clone());
+                                            printer.calibrate_nossle_frames.Add(printer.cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "B0", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[2], settins_string.calibrate_nossle_y[2], settins_string.calibrate_nossle_z[2]), 0, jog_xyz_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 7;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[2], printer.settins_string.calibrate_nossle_y[2], printer.settins_string.calibrate_nossle_z[2]), 0, printer.jog_xyz_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 7;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                                         }
 
 
-                                        if (calibrate_nossle_stage_counter == 7 && prog_state == programm_state.STOP)
+                                        if (printer.calibrate_nossle_stage_counter == 7 && printer.prog_state == StepperPrinter.programm_state.STOP)
                                         {
                                             //calibrate_nossle_frames.Add(cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "B1", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, calibr_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 8;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(new Point3d_GL(printer.settins_string.calibrate_nossle_x[0], printer.settins_string.calibrate_nossle_y[0], printer.settins_string.calibrate_nossle_z[0]), 0, printer.calibr_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 8;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                                         }
 
-                                        if (calibrate_nossle_stage_counter == 8 && calibr_y == 2)
+                                        if (printer.calibrate_nossle_stage_counter == 8 && printer.calibr_y == 2)
                                         {
-                                            calibrate_nossle_frames.Add(cur_frame.clone());
+                                            printer.calibrate_nossle_frames.Add(printer.cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "B0", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            var fr_z_cal = new StepperFrame((calibrate_nossle_frames[2].p_xyz + calibrate_nossle_frames[3].p_xyz) / 2, 0, jog_xyz_vel);
-                                            calibrate_nossle_frames.Add(fr_z_cal.clone());
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            var fr_z_cal = new StepperFrame((printer.calibrate_nossle_frames[2].p_xyz + printer.calibrate_nossle_frames[3].p_xyz) / 2, 0, printer.jog_xyz_vel);
+                                            printer.calibrate_nossle_frames.Add(fr_z_cal.clone());
                                             fr_z_cal.p_xyz.z += 15;
                                             //prog_cur.Add(new StepperFrame(new Point3d_GL(settins_string.calibrate_nossle_x[0], settins_string.calibrate_nossle_y[0], settins_string.calibrate_nossle_z[0]), 0, jog_xyz_vel));
                                             prog_cur.Add(fr_z_cal.clone());
-                                            start_alternate_prog(prog_cur.ToArray());
+                                            printer.start_alternate_prog(prog_cur.ToArray());
 
 
-                                            calibrate_nossle_stage_counter = 9;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            printer.calibrate_nossle_stage_counter = 9;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
                                         }
 
 
                                         //----CALIBR_Z------------------------------------------------------------------------------------
 
-                                        if (calibrate_nossle_stage_counter == 9 && prog_state == programm_state.STOP)
+                                        if (printer.calibrate_nossle_stage_counter == 9 && printer.prog_state == StepperPrinter.programm_state.STOP)
                                         {
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "C1", false));
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(calibrate_nossle_frames[calibrate_nossle_frames.Count - 1].p_xyz, 0, calibr_vel));
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrate_nossle_stage_counter = 10;
-                                            Console.WriteLine("calibrate_nossle_stage_counter: " + calibrate_nossle_stage_counter);
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(printer.calibrate_nossle_frames[printer.calibrate_nossle_frames.Count - 1].p_xyz, 0, printer.calibr_vel));
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrate_nossle_stage_counter = 10;
+                                            Console.WriteLine("calibrate_nossle_stage_counter: " + printer.calibrate_nossle_stage_counter);
 
                                         }
 
-                                        if (calibrate_nossle_stage_counter == 10 && calibr_z == 2)
+                                        if (printer.calibrate_nossle_stage_counter == 10 && printer.calibr_z == 2)
                                         {
-                                            calibrate_nossle_frames.Add(cur_frame.clone());
+                                            printer.calibrate_nossle_frames.Add(printer.cur_frame.clone());
                                             var prog_cur = new List<StepperFrame>();
                                             prog_cur.Add(new StepperFrame(1, 589, "C0", false));
-                                            var cur_fr_dz = cur_frame.p_xyz.Clone();
+                                            var cur_fr_dz = printer.cur_frame.p_xyz.Clone();
                                             cur_fr_dz.z += 30;
-                                            prog_cur.Add(cur_frame.clone());
-                                            prog_cur.Add(new StepperFrame(cur_fr_dz, 0, jog_xyz_vel));
+                                            prog_cur.Add(printer.cur_frame.clone());
+                                            prog_cur.Add(new StepperFrame(cur_fr_dz, 0, printer.jog_xyz_vel));
 
-                                            var fr_x_cal = (calibrate_nossle_frames[0].p_xyz + calibrate_nossle_frames[1].p_xyz) / 2;
-                                            var fr_y_cal = (calibrate_nossle_frames[2].p_xyz + calibrate_nossle_frames[3].p_xyz) / 2;
-                                            offset_nossle[tool_active].p_xyz.x = fr_x_cal.x;
-                                            offset_nossle[tool_active].p_xyz.y = fr_y_cal.y;
-                                            offset_nossle[tool_active].p_xyz.z = cur_frame.p_xyz.z;
-                                            start_alternate_prog(prog_cur.ToArray());
-                                            calibrating_nossle = false;
-                                            auto_calibr = true;
-                                            comp_offset();
+                                            var fr_x_cal = (printer.calibrate_nossle_frames[0].p_xyz + printer.calibrate_nossle_frames[1].p_xyz) / 2;
+                                            var fr_y_cal = (printer.calibrate_nossle_frames[2].p_xyz + printer.calibrate_nossle_frames[3].p_xyz) / 2;
+                                            printer.offset_nossle[printer.tool_active].p_xyz.x = fr_x_cal.x;
+                                            printer.offset_nossle[printer.tool_active].p_xyz.y = fr_y_cal.y;
+                                            printer.offset_nossle[printer.tool_active].p_xyz.z = printer.cur_frame.p_xyz.z;
+                                            printer.tool_calibrated_auto[printer.tool_active] = true;
+                                            printer.start_alternate_prog(prog_cur.ToArray());
+                                            printer.calibrating_nossle = false;
+                                            printer.offset_frame = printer.comp_offset(printer.cur_coordinate_system);
                                             Console.WriteLine("calibrate done");
                                         }
 
@@ -1635,8 +1530,8 @@ namespace tcp_to_udp
                                     {
                                         //Console.WriteLine("2:" + vars_from_mes[4]);
                                         //wait_term = Convert.ToInt32(vars_from_mes[4][3]) - 48;
-                                        wait_term = Convert.ToInt32(vars_from_mes[4][4]) - 48;
-                                        all_steps2 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
+                                        printer.wait_term = Convert.ToInt32(vars_from_mes[4][4]) - 48;
+                                        printer.all_steps2 = Convert.ToInt32(vars_from_mes[4][0]) - 48;
                                     }
                                     
 
@@ -1706,7 +1601,7 @@ namespace tcp_to_udp
 
         public void load_settings()
         {
-            settins_string = load_obj<SettingsString>("settings_printer.json");
+            printer.settins_string = load_obj<SettingsString>("settings_printer.json");
 
 
             // settins_string.soft_max_pos2 = new int[2];
@@ -1727,38 +1622,38 @@ namespace tcp_to_udp
             settins_string.calibrate_nossles_offset_z = new double[ps_take];*/
 
 
-            for (int i = 0; i<settins_string.motors_count1;i++)
+            for (int i = 0; i<printer.settins_string.motors_count1;i++)
             {
                 
                 _TCPserver1.pushBuffer_in("num1 M587" + 
                     " I" + i + 
-                    " A" + Math.Round(settins_string.a_max1[i],3) +
-                    " V" + Math.Round(settins_string.v_def1[i], 3) +
-                    " E" + settins_string.end_inv1[i] +
-                    " D" + settins_string.motor_dir1[i] +
-                    " R" + settins_string.steps_per_mm1[i] +
-                    " K" + settins_string.home_dir1[i] +
-                    " B" + settins_string.home_pos1[i] +
+                    " A" + Math.Round(printer.settins_string.a_max1[i],3) +
+                    " V" + Math.Round(printer.settins_string.v_def1[i], 3) +
+                    " E" + printer.settins_string.end_inv1[i] +
+                    " D" + printer.settins_string.motor_dir1[i] +
+                    " R" + printer.settins_string.steps_per_mm1[i] +
+                    " K" + printer.settins_string.home_dir1[i] +
+                    " B" + printer.settins_string.home_pos1[i] +
                     "\n");
             }
 
-            for (int i = 0; i < settins_string.motors_count2; i++)
+            for (int i = 0; i < printer.settins_string.motors_count2; i++)
             {
                 _TCPserver1.pushBuffer_in("num2 M587" +
                     " I" + i +
-                    " A" + Math.Round(settins_string.a_max2[i], 3) +
-                    " V" + Math.Round(settins_string.v_def2[i], 3) +
-                    " E" + settins_string.end_inv2[i] +
-                    " D" + settins_string.motor_dir2[i] +
-                    " R" + settins_string.steps_per_mm2[i] +
-                    " K" + settins_string.home_dir2[i] +
-                    " B" + settins_string.home_pos2[i] +
+                    " A" + Math.Round(printer.settins_string.a_max2[i], 3) +
+                    " V" + Math.Round(printer.settins_string.v_def2[i], 3) +
+                    " E" + printer.settins_string.end_inv2[i] +
+                    " D" + printer.settins_string.motor_dir2[i] +
+                    " R" + printer.settins_string.steps_per_mm2[i] +
+                    " K" + printer.settins_string.home_dir2[i] +
+                    " B" + printer.settins_string.home_pos2[i] +
                     "\n");
             }
 
 
             _TCPserver1.pushBuffer_in("num1 M581 I2 A0");
-            save_obj("settings_printer.json", settins_string);
+            save_obj("settings_printer.json", printer.settins_string);
 
         }
         static int val_from_command(string cmd)

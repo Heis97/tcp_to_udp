@@ -1779,6 +1779,30 @@ namespace tcp_to_udp
     }
     public class StepperPrinter
     {
+
+        public double safe_z = 50; //150
+
+        public double safe_z_internal = 50; //150
+
+        public StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+        public StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+
+        public StepperFrame offset_plate = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+
+        public StepperFrame[] offset_nossle = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
+        public StepperFrame[] offset_zero_pos = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
+
+        public StepperFrame offset_internal = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+
+
+        public enum coordinate_system { MANUAL, AUTO, INTERNAL, CURRENT }
+        public coordinate_system cur_coordinate_system = coordinate_system.CURRENT;
+        public coordinate_system dest_coordinate_system = coordinate_system.MANUAL;
+
+
+        public bool table_out = false;
+        public bool cover_up = false;
+
         static public int prog_loaded_bef_start = 4;
         static public double min_temp_bed = 25;
         public double abs_pos_extr = 0;
@@ -1803,6 +1827,7 @@ namespace tcp_to_udp
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
+        public int lookup_buf = 100;
 
 
         /*static double steps_xyz = 800;//800
@@ -1813,7 +1838,7 @@ namespace tcp_to_udp
         public double a_off = 0;// 0.3; //0
         public double b_off = 0;// 0.24; //0 
         static public double printer_max_acs = 50;//500*/
-         
+
 
 
 
@@ -1852,7 +1877,605 @@ namespace tcp_to_udp
 
         public double koef_extrus = 1;
         public double koef_vel = 1;
-        
+        public int cur_nossle_type = 0;
+        public int cur_plate_type = 0;
+
+        public int tool_active = 0;
+
+        public List<string> prog_orig_commands = new List<string>();
+
+        public List<List<StepperFrame>> main_alternately_commands = new List<List<StepperFrame>>();
+        public int main_alternately_commands_counter = 0;
+
+
+        public List<StepperFrame> alternately_commands = new List<StepperFrame>();
+        public List<StepperFrame> prog_commands = new List<StepperFrame>();
+        public List<StepperFrame> jog_commands = new List<StepperFrame>();
+
+        public enum programm_state { MOVE, STOP, PAUSE, JOG, ALTERNATELY, CALIBRATE }
+        public SettingsString settins_string = null;
+
+        public StepperFrame[] bed_calib_ps = new StepperFrame[3];
+        public int cur_jog_line = 0;
+        public int cur_alternately_line = 0;
+        public int cur_alternately_line_internal = 0;
+        public programm_state prog_state = programm_state.STOP;
+        public int cur_prog_line = 0;
+        public int pause_prog_line = 0;
+
+
+        public long[] cur_pos = new long[] { 0, 0, 0, 0 };
+        public long[] prev_pos = new long[] { 0, 0, 0, 0 };
+
+
+
+        public double travel_xyz_vel = 8;
+        public double jog_xyz_vel = 10;
+        public int ring_en = 0;
+
+        public int safe_len_send_val = 40;
+
+
+
+        public int ring_buf_en = 0;
+        public int all_steps_kinem = 0;
+        public int all_steps1 = 0;
+        public int prog_done = 0;
+        public int wait_en = 0;
+        public int wait_term = 0;
+
+        public int all_steps2 = 0;
+
+        public int consider_wait_all_steps_kinem = 0;
+        public int consider_all_steps1 = 0;
+        public int consider_prog_done = 0;
+        public int consider_wait_en = 0;
+        public int consider_wait_term = 0;
+
+        public int consider_all_steps2 = 0;
+
+
+        //------------------------------------------
+        public int prev_delta_calib = 0;
+        public int prev_homing = 0;
+        public bool delta_calib_go_next_p = false;
+        public bool delta_calib_nozzle_up = false;
+
+        public int calibr_x = -1;
+        public int calibr_y = -1;
+        public int calibr_z = -1;
+        //----------------------------------------
+        public int max_count_cur_prog = 0;
+        public double jog_len = 100;
+        public int stop_len = 21;
+        public bool stop_len_setted = false;
+        //================================
+        public double calibr_vel = 3d;
+        public bool calibrating_nossle = false;
+        public int calibrate_nossle_stage_counter = 0;
+        public List<StepperFrame> calibrate_nossle_frames = new List<StepperFrame>();
+
+        public int[] tool_inds = new int[4];
+        public bool main_alternately_commands_exec = false;
+
+
+
+
+        public bool[] tool_calibrated_auto = { false, false, false };
+        public bool[] tool_calibrated_manual = { false, false, false };
+        public StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperFrame offset, StepperFrame cur_frame)
+        {
+            var frames_out = new List<StepperFrame>();
+            var frames_kinematic = new List<StepperFrame>();
+            int kinematic_count = 0;
+            var last_frame = cur_frame.clone();
+            Console.WriteLine("offset_alternate: " + offset.p_xyz + " " + offset.e);
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                if (stepper_frames[i].kinematic)
+                {
+                    if (kinematic_count == 0)
+                    {
+                        frames_kinematic.Add(last_frame);
+                    }
+
+                    frames_kinematic.Add(stepper_frames[i]);
+
+                    last_frame = stepper_frames[i].clone();
+                    kinematic_count++;
+                }
+                else
+                {
+                    if (frames_kinematic.Count > 0)
+                    {
+                        var conv_frames = convert_g_code(frames_kinematic.ToArray(), offset).ToList();
+                        var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray());
+                        frames_kinematic = new List<StepperFrame>();
+                        frames_out.AddRange(frames_kinematic_prep);
+                        kinematic_count = 0;
+                    }
+                    frames_out.Add(stepper_frames[i]);
+
+                }
+
+            }
+
+            if (frames_kinematic.Count > 0)
+            {
+                var conv_frames = convert_g_code(frames_kinematic.ToArray(),  offset).ToList();
+                var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray());
+                frames_kinematic = new List<StepperFrame>();
+                frames_out.AddRange(frames_kinematic_prep);
+            }
+            return frames_out.ToArray();
+        }
+        public StepperFrame[] convert_g_code(StepperFrame[] orig_g_code,  StepperFrame offset)
+        {
+            var off_z = 0d;
+            for (int i = 0; i < orig_g_code.Length; i++)
+            {
+                orig_g_code[i].p_xyz += offset.p_xyz;
+                //orig_g_code[i].e += offset.e;
+                orig_g_code[i].p_xyz.z += comp_off_bed(orig_g_code[i].p_xyz) - off_z;
+
+                Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
+            }
+
+            var stepper_frames = StepperFrame.convert_frames_v3(
+                orig_g_code,
+                 StepperPrinter.printer_max_acs,        //acs  mm/s^2
+                 StepperPrinter.printer_max_r);      //max r  mm
+
+            if (stepper_frames == null) return null;
+            var coms = new List<StepperFrame>();
+
+            //coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
+            //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
+            //printer.abs_pos_extr = 0;
+            var test_abs_e = 0d;
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
+                //var l = stepper_frames[i].get_command(printer);
+                //Console.Write(""+ l+" "+ stepper_frames[i].p_xyz);
+                test_abs_e += stepper_frames[i].e;
+                //Console.WriteLine(" p: " + stepper_frames[i].p_xyz + " " + test_abs_e);
+                coms.Add(stepper_frames[i]);
+            }
+            return coms.ToArray();
+        }
+        public static int comp_stop_len(StepperFrame[] stepper_frames)
+        {
+            int stop_len = 0;
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                if (stepper_frames[i].kinematic && stepper_frames[i].movement)
+                {
+                    stop_len++;
+                }
+            }
+            return stop_len;
+        }
+
+        public StepperFrame[] prepare_g_code_to_load(StepperFrame[] stepper_frames)
+        {
+            var coms = new List<StepperFrame>();
+            cur_prog_number++;
+            coms.Add(new StepperFrame(1, 588, "A0 F0 B" + lookup_buf + " C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
+            //coms.Add();//  e = 0
+            var com_reset_e = new StepperFrame(1, 587, "I7 C0", true);
+            com_reset_e.reset_extr = true;
+            coms.Add(com_reset_e);
+            var stop_len = comp_stop_len(stepper_frames);
+            abs_pos_extr = 0;
+            int i_start = Math.Min(StepperPrinter.prog_loaded_bef_start, stop_len - 1);
+            for (int i = 0; i < stop_len; i++)
+            {
+
+                coms.Add(stepper_frames[i]);
+
+                if (i == i_start)
+                {
+                    var fr_len = new StepperFrame(1, 588, "A1 D0 H" + cur_prog_number, true);
+                    fr_len.len = stop_len;
+                    coms.Add(fr_len); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
+                }
+
+                //var l = stepper_frames[i].get_command(printer);
+                //Console.WriteLine(""+ stepper_frames[i].p_xyz);
+                //var fr_stop = new StepperFrame(1, 588, "A0 D0 C0", true);
+                //coms.Add(fr_stop);
+            }
+            set_prog_ind(ref stepper_frames, cur_prog_number);
+            stepper_frames[stepper_frames.Length - 1].consider_prog_done = 1;
+            return coms.ToArray();
+        }
+        public static void set_prog_ind(ref StepperFrame[] stepper_frames, int ind_prog)
+        {
+            var cur_line_numb = 0;
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                stepper_frames[i].prog_number = ind_prog;
+                if (stepper_frames[i].kinematic && stepper_frames[i].movement)
+                {
+                    stepper_frames[i].line_number = cur_line_numb; cur_line_numb++;
+                }
+            }
+        }
+
+        public static List<List<StepperFrame>> prepare_main_alternate_g_code_to_load(StepperFrame[] stepper_frames)
+        {
+            var main_frames = new List<List<StepperFrame>>();
+            var oct_frames = new List<StepperFrame>();
+            for (int i = 0; i < stepper_frames.Length; i++)
+            {
+                if (stepper_frames[i].plate_num == 0)
+                {
+                    if (oct_frames.Count != 0) main_frames.Add(oct_frames);
+                    oct_frames = new List<StepperFrame>();
+                    oct_frames.Add(stepper_frames[i]);
+                    main_frames.Add(oct_frames);
+                    oct_frames = new List<StepperFrame>();
+                }
+                else
+                {
+                    oct_frames.Add(stepper_frames[i]);
+                }
+
+            }
+            if (oct_frames.Count != 0) main_frames.Add(oct_frames);
+            return main_frames;
+        }
+
+        public StepperFrame[] convert_g_code_to_stepperframes(string[] orig_g_code, StepperPrinter printer)
+        {
+            var coms = new List<StepperFrame>();
+
+            var p_offs = new Point3d_GL(0, 0, 0);
+            var e_offs = 0d;
+
+
+            var p_cur = new Point3d_GL(0, 0, 0);
+            var e_cur = 0d;
+
+
+            var vel_cur = 10d;
+            var k_vel = 1d / 60d;//if mm\min
+
+            bool extr_rel = false;
+            bool pos_rel = false;
+
+            var p_abs = new Point3d_GL(0, 0, 0);
+            var e_abs = 0d;
+            for (int i = 0; i < orig_g_code.Length; i++)
+            {
+                var line = orig_g_code[i].Trim();
+                line = line.Replace("  ", " ");
+                line = line.Replace("  ", " ");
+                var vals = line.Split(' ');
+                //if (vals.Length<2) continue;
+                if (pos_rel)
+                {
+                    p_cur = new Point3d_GL(0, 0, 0);
+                }
+                if (extr_rel || pos_rel)
+                {
+                    e_cur = 0;
+                }
+
+                if (vals[0].Contains("G1") || vals[0].Contains("G0"))
+                {
+
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'X') p_cur.x = val_parsed;
+                        if (lit == 'Y') p_cur.y = val_parsed;
+                        if (lit == 'Z') p_cur.z = val_parsed;
+                        if (lit == 'E') e_cur = val_parsed;
+                        if (lit == 'F') vel_cur = val_parsed * k_vel;
+
+                        if (pos_rel)
+                        {
+                            p_abs += new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
+                        }
+                        else
+                        {
+                            p_abs = new Point3d_GL(p_cur.x, p_cur.y, p_cur.z) + p_offs;
+                        }
+
+
+                        if (extr_rel || pos_rel)
+                        {
+                            e_abs += e_cur;
+                        }
+                        else
+                        {
+                            e_abs = e_cur + e_offs;
+                        }
+                    }
+                    Console.WriteLine("e_abs: " + e_abs + "; e_cur: " + e_cur + "; e_offs: " + e_offs + "; pos_rel: " + pos_rel);
+                    coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));
+                }
+
+
+                if (vals[0].Contains("G2") || vals[0].Contains("G3"))//to do
+                {
+
+                }
+
+                if (vals[0].Contains("G4"))
+                {
+                    double wait_ms = 0;
+                    double wait_s = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') wait_s = val_parsed;
+                        if (lit == 'P') wait_ms = val_parsed;
+                    }
+
+                    coms.Add(new StepperFrame(1, 589, "P" + wait_ms + 1000 * wait_s));
+                }
+
+                if (vals[0].Contains("G28"))
+                {
+                    coms.Add(new StepperFrame(1, 589, "X12"));
+                }
+
+                if (vals[0].Contains("G90"))
+                {
+                    pos_rel = false;
+                    //p_cur = new Point3d_GL(0, 0, 0);
+                    if (extr_rel)
+                    {
+                        //e_cur = 0;
+                    }
+                }
+                if (vals[0].Contains("G91"))
+                {
+                    pos_rel = true;
+                    //e_abs = e_offs;
+                }
+
+                if (vals[0].Contains("M82"))
+                {
+                    extr_rel = false;
+                }
+                if (vals[0].Contains("M83"))
+                {
+                    extr_rel = true;
+                }
+
+                if (vals[0].Contains("G92"))
+                {
+                    var p_st = new Point3d_GL(0, 0, 0);
+                    var e_st = 0d;
+                    var x_en = 0;
+                    var y_en = 0;
+                    var z_en = 0;
+                    var e_en = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'X') { p_offs.x = p_abs.x; p_abs.x = val_parsed; x_en = 1; p_cur.x = val_parsed; }
+                        if (lit == 'Y') { p_offs.y = p_abs.y; p_abs.y = val_parsed; y_en = 1; p_cur.y = val_parsed; }
+                        if (lit == 'Z') { p_offs.z = p_abs.z; p_abs.z = val_parsed; z_en = 1; p_cur.z = val_parsed; }
+                        if (lit == 'E') { e_offs = e_abs; e_abs = val_parsed; e_en = 1; e_cur = val_parsed; } //
+                    }
+
+                    //coms.Add(new StepperFrame(0, 612, p_st.x + " " + p_st.y + " " + p_st.z + " " + e_st + " " + x_en + " " + y_en + " " + z_en + " " + e_en));
+                    //p_cur = new Point3d_GL(0,0,0);
+
+
+                }
+
+                if (vals[0].Contains("M106"))
+                {
+                    var fan_ind = 0;
+                    var fan_val = 0;
+                    var board_ind = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') fan_val = (int)val_parsed;
+                        if (lit == 'P') fan_ind = (int)val_parsed;
+                        if (lit == 'B') board_ind = (int)val_parsed;
+                    }
+
+                    coms.Add(new StepperFrame(board_ind, 581, "I" + fan_ind + " A" + fan_val));
+                }
+
+                if (vals[0].Contains("M107"))
+                {
+                    var fan_ind = 0;
+                    var fan_val = 0;
+                    var board_ind = 0;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') fan_val = (int)val_parsed;
+                        if (lit == 'P') fan_ind = (int)val_parsed;
+                        if (lit == 'B') board_ind = (int)val_parsed;
+                    }
+
+                    coms.Add(new StepperFrame(board_ind, 581, "I" + fan_ind + " A0"));
+                    pos_rel = false;
+                }
+
+
+                if (vals[0].Contains("M140"))
+                {
+                    var temp_dest = 0d;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') { temp_dest = val_parsed; }
+                    }
+                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 0));
+                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 0));
+
+                }
+
+                if (vals[0].Contains("M190"))
+                {
+                    var temp_dest = 0d;
+                    for (int j = 1; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'S') { temp_dest = val_parsed; }
+                    }
+
+
+                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 1));
+                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 1));
+                }
+
+                if (vals[0].Contains("T"))
+                {
+                    //main com
+                    int tool_dest_ind = 0;
+                    for (int j = 0; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'T') { tool_dest_ind = (int)val_parsed; }
+                    }
+
+                    coms.Add(new StepperFrame(0, 640, "2"));
+                    coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
+
+                    coms.Add(new StepperFrame(0, 620, tool_dest_ind.ToString()));
+
+                    if (dest_coordinate_system == coordinate_system.AUTO)
+                    {
+                        coms.Add(new StepperFrame(0, 631, ""));
+                        coms.Add(new StepperFrame(0, 640, "2"));
+                        coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
+                    }
+
+                    
+
+                    if (dest_coordinate_system == coordinate_system.MANUAL) coms.Add(new StepperFrame(0, 640, "0"));
+                    if (dest_coordinate_system == coordinate_system.AUTO) coms.Add(new StepperFrame(0, 640, "1"));
+
+                    p_abs.z += safe_z;
+                    coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));
+
+                    p_abs.z -= safe_z;
+                    coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));
+                }
+
+                if (vals[0].Contains("G54"))
+                {
+                    //main com
+
+                    //X - plate select
+
+                }
+            }
+
+            return coms.ToArray();
+        }
+
+
+        public void start_alternate_prog(StepperFrame[] prog_cur)
+        {
+            offset_frame = comp_offset(cur_coordinate_system);
+
+            var offs = cur_frame.clone();
+            offs.p_xyz -= offset_frame.p_xyz;
+
+            alternately_commands = prepare_alternate_g_code_to_load(prog_cur, offset_frame, offs).ToList();
+            cur_alternately_line = 0;
+
+            prog_state = programm_state.ALTERNATELY;
+
+            consider_wait_all_steps_kinem = 0;
+            consider_all_steps1 = 0;
+            consider_prog_done = 0;
+            consider_wait_en = 0;
+            consider_wait_term = 0;
+
+            consider_all_steps2 = 0;
+        }
+
+        public void start_main_alternate_prog(StepperFrame[] prog_cur)
+        {
+            main_alternately_commands = prepare_main_alternate_g_code_to_load(prog_cur);
+            main_alternately_commands_counter = 0;
+            main_alternately_commands_exec = true;
+        }
+        static public double parse_double(string str)
+        {
+            try
+            {
+                return double.Parse(str);
+            }
+            catch { return double.NaN; }
+        }
+
+
+        public StepperFrame comp_offset(coordinate_system coordinate_system_type)
+        {
+            var p = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
+            if (coordinate_system_type == coordinate_system.AUTO)
+            {
+
+
+                offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]);
+                Console.WriteLine("offset_nossle" + offset_nossle[tool_active].p_xyz);
+                Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
+                p = new StepperFrame(offset_nossle[tool_active].p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
+
+                Console.WriteLine("offset_frame:" + offset_frame.p_xyz);
+            }
+
+            else if (coordinate_system_type == coordinate_system.MANUAL)
+            {
+                p = offset_zero_pos[tool_active].clone();
+            }
+            else if (coordinate_system_type == coordinate_system.INTERNAL)
+            {
+                p = offset_internal.clone();
+            }
+            else if (coordinate_system_type == coordinate_system.CURRENT)
+            {
+                p = cur_frame.clone();
+            }
+            return p.clone();
+        }
         public StepperPrinter()
         {
             init_delta_comp();
@@ -2396,7 +3019,7 @@ namespace tcp_to_udp
             return new Point3d_GL[] { abc_fitting, p_cur_xyz };
         }
 
-        static public StepperFrame[] gen_change_prog(int val, SettingsString settins_string, StepperFrame cur_frame)
+        static public StepperFrame[] gen_change_prog(int val, SettingsString settins_string, StepperFrame cur_frame,double safe_z)
         {
             StepperFrame[] prog_cur = null;
 
@@ -2408,7 +3031,7 @@ namespace tcp_to_udp
                 settins_string.take_left_manip_rot,
                 settins_string.take_left_manip_x,
                 settins_string.take_left_manip_y,
-                settins_string.take_left_manip_z
+                settins_string.take_left_manip_z, safe_z
                 ); break;
 
                 case 1:
@@ -2417,7 +3040,7 @@ namespace tcp_to_udp
                 settins_string.take_left_manip_rot,
                 settins_string.take_left_manip_x,
                 settins_string.take_left_manip_y,
-                settins_string.take_left_manip_z
+                settins_string.take_left_manip_z, safe_z
                 ); break;
 
                 case 2:
@@ -2426,7 +3049,7 @@ namespace tcp_to_udp
                 settins_string.take_right_manip_rot,
                 settins_string.take_right_manip_x,
                 settins_string.take_right_manip_y,
-                settins_string.take_right_manip_z
+                settins_string.take_right_manip_z, safe_z
                 ); break;
 
                 case 3:
@@ -2435,7 +3058,7 @@ namespace tcp_to_udp
                 settins_string.take_right_manip_rot,
                 settins_string.take_right_manip_x,
                 settins_string.take_right_manip_y,
-                settins_string.take_right_manip_z
+                settins_string.take_right_manip_z, safe_z
                 ); break;
             }
 
@@ -2443,14 +3066,23 @@ namespace tcp_to_udp
         }
         
 
-        static public StepperFrame[] gen_take_prog(StepperFrame cur_frame, double vel_change, int rot_ind, int vert_ind, int[] take_manip_vert, int[] take_manip_rot, double[] take_manip_x, double[] take_manip_y, double[] take_manip_z)
+        static public StepperFrame[] gen_take_prog(StepperFrame cur_frame, double vel_change, int rot_ind, int vert_ind, int[] take_manip_vert, int[] take_manip_rot, double[] take_manip_x, double[] take_manip_y, double[] take_manip_z,double safe_z)
         {
             
             var prog_cur = new List<StepperFrame>();
             //prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ vert_ind + " P" + take_manip_vert[0] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[0] + " L", false));
-            prog_cur.Add(cur_frame.clone());
+
+
+            var cur = cur_frame.clone();
+            prog_cur.Add(cur.clone());
+            if (cur.p_xyz.z < safe_z)
+            {
+                cur.p_xyz.z = safe_z;
+                prog_cur.Add(cur);
+            }
+
 
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]), 0, vel_change));
 
@@ -2473,17 +3105,25 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
 
 
+            prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]+100), 0, vel_change));
+
             prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P" + take_manip_rot[4] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I" + vert_ind + " P" + take_manip_vert[1] + " L", false));
             return prog_cur.ToArray();
         }
 
 
-        static public StepperFrame[] gen_give_prog(StepperFrame cur_frame, double vel_change, int rot_ind, int vert_ind, int[] take_manip_vert, int[] take_manip_rot, double[] take_manip_x, double[] take_manip_y, double[] take_manip_z)
+        static public StepperFrame[] gen_give_prog(StepperFrame cur_frame, double vel_change, int rot_ind, int vert_ind, int[] take_manip_vert, int[] take_manip_rot, double[] take_manip_x, double[] take_manip_y, double[] take_manip_z, double safe_z)
         {
 
             var prog_cur = new List<StepperFrame>();
-            prog_cur.Add(cur_frame.clone());
+            var cur = cur_frame.clone();
+            prog_cur.Add(cur.clone());
+            if (cur.p_xyz.z < safe_z)
+            {
+                cur.p_xyz.z = safe_z;
+                prog_cur.Add(cur);
+            }
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
             //prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
 
@@ -2507,6 +3147,7 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]), 0, vel_change));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[4] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I" + vert_ind + " P" + take_manip_vert[1] + " L", false));
+            prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]+100), 0, vel_change));
             //prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P100 L", false));//without double not work
             return prog_cur.ToArray();
         }
@@ -3405,428 +4046,7 @@ namespace tcp_to_udp
             return coms.ToArray();
         }
 
-        public static StepperFrame[] convert_g_code(StepperFrame[] orig_g_code,ref StepperPrinter printer, StepperFrame offset)
-        {
-            var off_z = 0d;
-            for (int i = 0; i < orig_g_code.Length; i++)
-            {
-                orig_g_code[i].p_xyz += offset.p_xyz;
-                //orig_g_code[i].e += offset.e;
-                orig_g_code[i].p_xyz.z += printer.comp_off_bed(orig_g_code[i].p_xyz) - off_z;
-                
-                Console.WriteLine(i + " " + orig_g_code[i].p_xyz.x + " " + orig_g_code[i].p_xyz.y + " " + orig_g_code[i].p_xyz.z + " " + orig_g_code[i].e);
-            }
-
-            var stepper_frames = convert_frames_v3(
-                orig_g_code,
-                 StepperPrinter.printer_max_acs,        //acs  mm/s^2
-                 StepperPrinter.printer_max_r);      //max r  mm
-
-            if (stepper_frames == null) return null;
-            var coms = new List<StepperFrame>();
-
-            //coms.Add(new StepperFrame(1, 588, "F0", true));//   ring_buf_all_counter_write
-            //coms.Add(new StepperFrame(1, 587, "I7 C0", true));//  e = 0
-            //printer.abs_pos_extr = 0;
-            var test_abs_e = 0d;
-            for (int i = 0; i < stepper_frames.Length; i++)
-            {
-                //if (i == 10) coms.Add(new StepperFrame(1, 588, "A1 D0 C" + stepper_frames.Length,true)); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
-                //var l = stepper_frames[i].get_command(printer);
-                //Console.Write(""+ l+" "+ stepper_frames[i].p_xyz);
-                test_abs_e += stepper_frames[i].e;
-                //Console.WriteLine(" p: " + stepper_frames[i].p_xyz + " " + test_abs_e);
-                coms.Add(stepper_frames[i]);
-            }
-            return coms.ToArray();
-        }
-        public static int comp_stop_len(StepperFrame[] stepper_frames)
-        {
-            int stop_len = 0;
-            for (int i = 0; i < stepper_frames.Length; i++)
-            {
-                if (stepper_frames[i].kinematic && stepper_frames[i].movement)
-                {
-                    stop_len++;
-                }
-            }
-            return stop_len;
-        }
-
-        public static StepperFrame[] prepare_g_code_to_load(StepperFrame[] stepper_frames, ref StepperPrinter printer)
-        {
-            var coms = new List<StepperFrame>();
-            printer.cur_prog_number++;
-            coms.Add(new StepperFrame(1, 588, "A0 F0 C" + stepper_frames.Length, true));//   ring_buf_all_counter_write
-            //coms.Add();//  e = 0
-            var com_reset_e = new StepperFrame(1, 587, "I7 C0", true);
-            com_reset_e.reset_extr = true;
-            coms.Add(com_reset_e);
-            var stop_len = comp_stop_len(stepper_frames);
-            printer.abs_pos_extr = 0;
-            int i_start = Math.Min(StepperPrinter.prog_loaded_bef_start, stop_len - 1);
-            for (int i = 0; i < stop_len; i++)
-            {
-
-                coms.Add(stepper_frames[i]);
-
-                if (i == i_start)
-                {
-                    var fr_len = new StepperFrame(1, 588, "A1 D0 H"+ printer.cur_prog_number, true);
-                    fr_len.len = stop_len;
-                    coms.Add(fr_len); //ring_buf_en = 1; ring_buf_counter = 0; ring_buf_end = stepper_frames.Length
-                }
-
-                //var l = stepper_frames[i].get_command(printer);
-                //Console.WriteLine(""+ stepper_frames[i].p_xyz);
-                //var fr_stop = new StepperFrame(1, 588, "A0 D0 C0", true);
-                //coms.Add(fr_stop);
-            }
-            set_prog_ind(ref stepper_frames, printer.cur_prog_number);
-            stepper_frames[stepper_frames.Length - 1].consider_prog_done = 1;
-            return coms.ToArray();
-        }
-        public static void set_prog_ind(ref StepperFrame[] stepper_frames, int ind_prog)
-        {
-            var cur_line_numb = 0;
-            for (int i = 0; i < stepper_frames.Length; i++)
-            {
-                stepper_frames[i].prog_number = ind_prog;
-                if(stepper_frames[i].kinematic && stepper_frames[i].movement)
-                {
-                    stepper_frames[i].line_number = cur_line_numb; cur_line_numb++;
-                }
-            }
-        }
-
-        public static List<List<StepperFrame>> prepare_main_alternate_g_code_to_load(StepperFrame[] stepper_frames)
-        {
-            var main_frames = new List<List<StepperFrame>>();
-            var oct_frames = new List<StepperFrame>();
-            for (int i = 0; i < stepper_frames.Length; i++)
-            {
-                if (stepper_frames[i].plate_num ==0)
-                {
-                    if(oct_frames.Count != 0) main_frames.Add(oct_frames);
-                    oct_frames = new List<StepperFrame>();
-                    oct_frames.Add(stepper_frames[i]);
-                    main_frames.Add(oct_frames);
-                    oct_frames = new List<StepperFrame>();
-                }
-                else
-                {
-                    oct_frames.Add(stepper_frames[i]);
-                }
-
-            }
-            if (oct_frames.Count != 0) main_frames.Add(oct_frames);
-            return main_frames;
-        }
-        public static StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames,ref StepperPrinter printer, StepperFrame offset, StepperFrame cur_frame)
-        {
-            var frames_out = new List<StepperFrame>();
-            var frames_kinematic = new List<StepperFrame>();
-            int kinematic_count = 0;
-            var last_frame =  cur_frame.clone();
-            Console.WriteLine("offset_alternate: " + offset.p_xyz+" "+offset.e);
-            for (int i=0; i<stepper_frames.Length; i++)
-            {
-                if (stepper_frames[i].kinematic)
-                {
-                    if (kinematic_count == 0)
-                    {
-                        frames_kinematic.Add(last_frame);
-                    }
-                    
-                    frames_kinematic.Add(stepper_frames[i]);
-
-                    last_frame = stepper_frames[i].clone();
-                    kinematic_count++;
-                }
-                else
-                {
-                    if(frames_kinematic.Count>0)
-                    {
-                        var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(),ref printer, offset).ToList();
-                        var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray(), ref printer);
-                        frames_kinematic = new List<StepperFrame>();
-                        frames_out.AddRange(frames_kinematic_prep);
-                        kinematic_count = 0;
-                    }
-                    frames_out.Add(stepper_frames[i]);
-
-                }
-
-            }
-
-            if (frames_kinematic.Count > 0)
-            {
-                var conv_frames = StepperFrame.convert_g_code(frames_kinematic.ToArray(),ref printer, offset).ToList();
-                var frames_kinematic_prep = prepare_g_code_to_load(conv_frames.ToArray(), ref printer);
-                frames_kinematic = new List<StepperFrame>();
-                frames_out.AddRange(frames_kinematic_prep);
-            }
-            return frames_out.ToArray();
-        }
-        public static StepperFrame[] convert_g_code_to_stepperframes(string[] orig_g_code, StepperPrinter printer)
-        {
-            var coms = new List<StepperFrame>();
-
-            var p_offs = new Point3d_GL(0, 0, 0);
-            var e_offs = 0d;
-
-
-            var p_cur = new Point3d_GL(0, 0, 0);
-            var e_cur = 0d;
-
-
-            var vel_cur = 10d;
-            var k_vel = 1d / 60d;//if mm\min
-
-            bool extr_rel = false;
-            bool pos_rel = false;
-
-            var p_abs = new Point3d_GL(0,0, 0);
-            var e_abs = 0d;
-            for(int i = 0; i < orig_g_code.Length; i++)
-            {
-                var line = orig_g_code[i].Trim();
-                line = line.Replace("  "," ");
-                line = line.Replace("  "," ");
-                var vals = line.Split(' ');
-                //if (vals.Length<2) continue;
-                if (pos_rel)
-                {
-                    p_cur = new Point3d_GL(0, 0, 0);
-                }
-                if (extr_rel || pos_rel)
-                {
-                    e_cur = 0;
-                }
-
-                if (vals[0].Contains("G1") || vals[0].Contains("G0"))
-                {
-                    
-                    for (int j = 1; j<vals.Length; j++)
-                    {
-                        if (vals[j].Length<2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'X') p_cur.x = val_parsed;
-                        if (lit == 'Y') p_cur.y = val_parsed;
-                        if (lit == 'Z') p_cur.z = val_parsed;                       
-                        if (lit == 'E') e_cur = val_parsed;
-                        if (lit == 'F') vel_cur = val_parsed * k_vel;
-
-                        if(pos_rel)
-                        {
-                            p_abs += new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);                            
-                        }
-                        else
-                        {
-                            p_abs =  new Point3d_GL(p_cur.x, p_cur.y, p_cur.z) + p_offs;
-                        }
-
-
-                        if (extr_rel || pos_rel)
-                        {
-                            e_abs += e_cur;
-                        }
-                        else
-                        {
-                            e_abs = e_cur + e_offs;
-                        }
-                    }
-                    Console.WriteLine("e_abs: " + e_abs + "; e_cur: " + e_cur + "; e_offs: " + e_offs +  "; pos_rel: " + pos_rel);
-                    coms.Add(new StepperFrame(p_abs.Clone(),e_abs,vel_cur));
-                }
-
-
-                if (vals[0].Contains("G2") || vals[0].Contains("G3"))//to do
-                {
-
-                }
-
-                if (vals[0].Contains("G4"))
-                {
-                    double wait_ms = 0;
-                    double wait_s = 0;
-                    for (int j = 1; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'S') wait_s = val_parsed;
-                        if (lit == 'P') wait_ms = val_parsed;
-                    }
-
-                    coms.Add(new StepperFrame(1,589,"P" + wait_ms + 1000*wait_s));
-                }
-
-                if (vals[0].Contains("G28"))
-                {
-                    coms.Add(new StepperFrame(1, 589, "X12"));
-                }
-
-                if (vals[0].Contains("G90"))
-                {
-                    pos_rel = false;
-                    //p_cur = new Point3d_GL(0, 0, 0);
-                    if (extr_rel)
-                    {
-                        //e_cur = 0;
-                    }
-                }
-                if (vals[0].Contains("G91"))
-                {
-                    pos_rel = true;
-                    //e_abs = e_offs;
-                }
-
-                if (vals[0].Contains("M82"))
-                {
-                    extr_rel = false;
-                }
-                if (vals[0].Contains("M83"))
-                {
-                    extr_rel = true;
-                }
-
-                if (vals[0].Contains("G92"))
-                {
-                    var p_st = new Point3d_GL(0, 0, 0);
-                    var e_st = 0d;
-                    var x_en = 0;
-                    var y_en = 0;
-                    var z_en = 0;
-                    var e_en = 0;
-                    for (int j = 1; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'X') { p_offs.x = p_abs.x; p_abs.x = val_parsed; x_en = 1; p_cur.x = val_parsed; }
-                        if (lit == 'Y') { p_offs.y = p_abs.y; p_abs.y = val_parsed; y_en = 1; p_cur.y = val_parsed; }
-                        if (lit == 'Z') { p_offs.z = p_abs.z; p_abs.z = val_parsed; z_en = 1; p_cur.z = val_parsed; }
-                        if (lit == 'E') { e_offs = e_abs;     e_abs  = val_parsed ; e_en = 1; e_cur = val_parsed;  } //
-                    }
-
-                    //coms.Add(new StepperFrame(0, 612, p_st.x + " " + p_st.y + " " + p_st.z + " " + e_st + " " + x_en + " " + y_en + " " + z_en + " " + e_en));
-                    //p_cur = new Point3d_GL(0,0,0);
-
-                    
-                }
-
-                if (vals[0].Contains("M106"))
-                {
-                    var fan_ind = 0;
-                    var fan_val = 0;
-                    var board_ind = 0;
-                    for (int j = 1; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'S') fan_val = (int)val_parsed;
-                        if (lit == 'P') fan_ind = (int)val_parsed;
-                        if (lit == 'B') board_ind = (int)val_parsed;
-                    }
-
-                    coms.Add(new StepperFrame(board_ind, 581, "I"+fan_ind+" A"+fan_val));
-                }
-
-                if (vals[0].Contains("M107"))
-                {
-                    var fan_ind = 0;
-                    var fan_val = 0;
-                    var board_ind = 0;
-                    for (int j = 1; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'S') fan_val = (int)val_parsed;
-                        if (lit == 'P') fan_ind = (int)val_parsed;
-                        if (lit == 'B') board_ind = (int)val_parsed;
-                    }
-
-                    coms.Add(new StepperFrame(board_ind, 581, "I" + fan_ind + " A0"));
-                    pos_rel = false;
-                }
-
-
-                if (vals[0].Contains("M140"))
-                {
-                    var temp_dest = 0d;
-                    for (int j = 1; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'S') { temp_dest = val_parsed; }
-                    }
-                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 0));
-                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 0));
-
-                }
-
-                if (vals[0].Contains("M190"))
-                {
-                    var temp_dest = 0d;
-                    for (int j = 1; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'S') { temp_dest = val_parsed; }
-                    }
-
-
-                    if (temp_dest < StepperPrinter.min_temp_bed) coms.Add(new StepperFrame(2, 579, "E0 T" + temp_dest, false, 1));
-                    else coms.Add(new StepperFrame(2, 579, "E1 T" + temp_dest, false, 1));
-                }
-
-                if (vals[0].Contains("T"))
-                {
-                    //main com
-                    int tool_dest_ind = 0;
-                    for (int j = 0; j < vals.Length; j++)
-                    {
-                        if (vals[j].Length < 2) continue;
-                        var lit = vals[j][0];
-                        var v_str = vals[j].Substring(1);
-                        var val_parsed = parse_double(v_str);
-                        if (val_parsed == double.NaN) continue;
-                        if (lit == 'T') { tool_dest_ind = (int)val_parsed; }
-                    }
-                    coms.Add(new StepperFrame(0, 620, tool_dest_ind.ToString()));
-                }
-
-                if (vals[0].Contains("G54"))
-                {
-                    //main com
-
-                    //X - plate select
-
-                }
-            }
-
-            return coms.ToArray();
-        }
+        
         static public StepperFrame add(StepperFrame fr1, StepperFrame fr2)
         {
             var fr_sum = fr1.clone();
@@ -3836,16 +4056,7 @@ namespace tcp_to_udp
             fr_sum.e += fr2.e;
             return fr_sum;
         }
-        static public double parse_double(string str)
-        {
-            try
-            {
-                return double.Parse(str);
-            }
-            catch { return double.NaN; }
-        }
-
-
+       
     }
 
 
