@@ -1827,29 +1827,29 @@ namespace tcp_to_udp
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
-        public int lookup_buf = 100;
+        public int lookup_buf = 15;
 
 
-        /*static double steps_xyz = 800;//800
+        static double steps_xyz = 800;//800
         public double R = 176.5;// 141; //150
         public double r = 47.5;//34;  //40
         public double l = 320;//218;  //215
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
         public double b_off = 0;// 0.24; //0 
-        static public double printer_max_acs = 50;//500*/
+        static public double printer_max_acs = 50;//500
 
 
 
 
-        static double steps_xyz = 80;
+        /*static double steps_xyz = 80;
         public double R =  141; //150
         public double r = 34;  //40
         public double l = 218;  //215
         public double printing_r = 100;
         public double a_off =  0.3; //0
         public double b_off =  0.24; //0
-        static public double printer_max_acs = 500;//500
+        static public double printer_max_acs = 500;//500*/
 
         public bool all_motors_stop1 = false;
         public bool all_motors_stop2 = true;
@@ -1913,7 +1913,7 @@ namespace tcp_to_udp
         public double jog_xyz_vel = 10;
         public int ring_en = 0;
 
-        public int safe_len_send_val = 40;
+        public int safe_len_send_val = 10;
 
 
 
@@ -1969,6 +1969,8 @@ namespace tcp_to_udp
             var frames_kinematic = new List<StepperFrame>();
             int kinematic_count = 0;
             var last_frame = cur_frame.clone();
+            last_frame.e = 0;
+
             Console.WriteLine("offset_alternate: " + offset.p_xyz + " " + offset.e);
             for (int i = 0; i < stepper_frames.Length; i++)
             {
@@ -2107,6 +2109,7 @@ namespace tcp_to_udp
         {
             var main_frames = new List<List<StepperFrame>>();
             var oct_frames = new List<StepperFrame>();
+
             for (int i = 0; i < stepper_frames.Length; i++)
             {
                 if (stepper_frames[i].plate_num == 0)

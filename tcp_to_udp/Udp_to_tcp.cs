@@ -514,8 +514,7 @@ namespace tcp_to_udp
                 {
                     prog_num_take = 2;
                 }
-                
-                prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, printer.settins_string, last_frame.clone(), printer.safe_z_internal));
+                if (prog_cur != null)  prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, printer.settins_string, last_frame.clone(), printer.safe_z_internal));
 
                 if (prog_cur != null)
                 {
@@ -767,7 +766,7 @@ namespace tcp_to_udp
                 var val = val_from_command(com_board);
                 switch (val)
                 {
-                    case 0: printer.dest_coordinate_system = StepperPrinter.coordinate_system.MANUAL; printer.cur_coordinate_system = StepperPrinter.coordinate_system.MANUAL; break;
+                    case 0: printer.dest_coordinate_system = StepperPrinter.coordinate_system.MANUAL; printer.cur_coordinate_system = StepperPrinter.coordinate_system.MANUAL; Console.WriteLine(printer.cur_coordinate_system); break;
                     case 1: printer.dest_coordinate_system = StepperPrinter.coordinate_system.AUTO; printer.cur_coordinate_system = StepperPrinter.coordinate_system.AUTO; break;
                 }
             }
@@ -789,6 +788,10 @@ namespace tcp_to_udp
                     case 1: printer.cover_up = true; break;
                 }
             }
+
+
+
+
             else if (command.Contains("M700"))//set all stop
             {
                 printer.prog_state =  StepperPrinter.programm_state.STOP;
@@ -958,13 +961,15 @@ namespace tcp_to_udp
                             var tools = "00000";
                             if (printer.tool_inds.Length == 4) tools = printer.tool_inds[0] + "" + printer.tool_inds[1] + "" + printer.tool_inds[2] + "" + printer.tool_inds[3] + "" + printer.tool_active;
 
+                            var offs_intern = printer.comp_offset(StepperPrinter.coordinate_system.INTERNAL).p_xyz;
 
+                            //Console.WriteLine(offs_intern);
 
-                            var frame_out_cur = frame_out - printer.offset_frame.p_xyz;
-                            var frame_out_mash = frame_out - printer.comp_offset(StepperPrinter.coordinate_system.INTERNAL).p_xyz;
-                            var frame_out_tool = frame_out - printer.comp_offset(printer.dest_coordinate_system).p_xyz;
+                            var frame_out_cur = frame_out.Clone() - printer.offset_frame.p_xyz;
+                            var frame_out_mash = frame_out.Clone() - offs_intern;
+                            var frame_out_tool = frame_out.Clone() - printer.comp_offset(printer.dest_coordinate_system).p_xyz;
 
-                            _TCPserver1.pushBuffer(mes + " " + tools + " " + frame_out_cur.ToString() + " " + frame_out.ToString() + " " + frame_out.ToString() + "\n");
+                            _TCPserver1.pushBuffer(mes + " " + tools + " " + frame_out_cur.ToString() + " " + frame_out_mash.ToString() + " " + frame_out_tool.ToString() +" "+printer.cur_coordinate_system+ "\n");
                         }
                         //Console.WriteLine(mes);
                         // Console.WriteLine("len1: " + coms1.Count);
