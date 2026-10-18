@@ -1780,17 +1780,17 @@ namespace tcp_to_udp
     public class StepperPrinter
     {
 
-        public double safe_z = 50; //150
+        public double safe_z = 30; //150
 
-        public double safe_z_internal = 50; //150
+        public double safe_z_internal = -350; //150
 
         public StepperFrame cur_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
         public StepperFrame offset_frame = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
 
         public StepperFrame offset_plate = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
 
-        public StepperFrame[] offset_nossle = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
-        public StepperFrame[] offset_zero_pos = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
+        public StepperFrame[] offset_nossle = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
+        public StepperFrame[] offset_zero_pos = { new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0), new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0) };
 
         public StepperFrame offset_internal = new StepperFrame(new Point3d_GL(0, 0, 0), 0, 0);
 
@@ -1827,7 +1827,8 @@ namespace tcp_to_udp
         public Point3d_GL p_xyz_steps = new Point3d_GL(steps_xyz, steps_xyz, steps_xyz);
         public double e_steps = 100;
         public double t_coef = 104616.18;
-        public int lookup_buf = 15;
+        public int lookup_buf = 100;
+        public int safe_len_send_val = 40;
 
 
         static double steps_xyz = 800;//800
@@ -1913,7 +1914,7 @@ namespace tcp_to_udp
         public double jog_xyz_vel = 10;
         public int ring_en = 0;
 
-        public int safe_len_send_val = 10;
+        
 
 
 
@@ -1961,8 +1962,8 @@ namespace tcp_to_udp
 
 
 
-        public bool[] tool_calibrated_auto = { false, false, false };
-        public bool[] tool_calibrated_manual = { false, false, false };
+        public bool[] tool_calibrated_auto = { false, false, false, false };
+        public bool[] tool_calibrated_manual = { false, false, false, false };
         public StepperFrame[] prepare_alternate_g_code_to_load(StepperFrame[] stepper_frames, StepperFrame offset, StepperFrame cur_frame)
         {
             var frames_out = new List<StepperFrame>();
@@ -2376,16 +2377,16 @@ namespace tcp_to_udp
                         if (lit == 'T') { tool_dest_ind = (int)val_parsed; }
                     }
 
-                    coms.Add(new StepperFrame(0, 640, "2"));
-                    coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
+                    //coms.Add(new StepperFrame(0, 640, "2"));
+                    //coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
 
                     coms.Add(new StepperFrame(0, 620, tool_dest_ind.ToString()));
 
                     if (dest_coordinate_system == coordinate_system.AUTO)
                     {
                         coms.Add(new StepperFrame(0, 631, ""));
-                        coms.Add(new StepperFrame(0, 640, "2"));
-                        coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
+                        //coms.Add(new StepperFrame(0, 640, "1"));
+                        //coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
                     }
 
                     
@@ -2393,19 +2394,28 @@ namespace tcp_to_udp
                     if (dest_coordinate_system == coordinate_system.MANUAL) coms.Add(new StepperFrame(0, 640, "0"));
                     if (dest_coordinate_system == coordinate_system.AUTO) coms.Add(new StepperFrame(0, 640, "1"));
 
-                    p_abs.z += safe_z;
+                    /*p_abs.z += safe_z;
                     coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));
 
                     p_abs.z -= safe_z;
-                    coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));
+                    coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));*/
                 }
 
                 if (vals[0].Contains("G54"))
                 {
+                    var plate_num = 0;
                     //main com
-
+                    for (int j = 0; j < vals.Length; j++)
+                    {
+                        if (vals[j].Length < 2) continue;
+                        var lit = vals[j][0];
+                        var v_str = vals[j].Substring(1);
+                        var val_parsed = parse_double(v_str);
+                        if (val_parsed == double.NaN) continue;
+                        if (lit == 'X') { plate_num = (int)val_parsed; }
+                    }
                     //X - plate select
-
+                    coms.Add(new StepperFrame(0, 637, plate_num.ToString()));
                 }
             }
 
@@ -2458,11 +2468,11 @@ namespace tcp_to_udp
 
 
                 offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]);
-                Console.WriteLine("offset_nossle" + offset_nossle[tool_active].p_xyz);
-                Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
+                //Console.WriteLine("offset_nossle" + offset_nossle[tool_active].p_xyz);
+                //Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
                 p = new StepperFrame(offset_nossle[tool_active].p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
 
-                Console.WriteLine("offset_frame:" + offset_frame.p_xyz);
+                //Console.WriteLine("offset_frame:" + offset_frame.p_xyz);
             }
 
             else if (coordinate_system_type == coordinate_system.MANUAL)
@@ -3079,13 +3089,14 @@ namespace tcp_to_udp
 
 
             var cur = cur_frame.clone();
+            cur.vel = vel_change;
             prog_cur.Add(cur.clone());
-            if (cur.p_xyz.z < safe_z)
+            /*if (cur.p_xyz.z < safe_z)
             {
                 cur.p_xyz.z = safe_z;
                 prog_cur.Add(cur);
-            }
-
+            }*/
+            
 
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]), 0, vel_change));
 
@@ -3108,7 +3119,7 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
 
 
-            prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]+100), 0, vel_change));
+            prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
 
             prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P" + take_manip_rot[4] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I" + vert_ind + " P" + take_manip_vert[1] + " L", false));
@@ -3121,12 +3132,13 @@ namespace tcp_to_udp
 
             var prog_cur = new List<StepperFrame>();
             var cur = cur_frame.clone();
+            cur.vel = vel_change;
             prog_cur.Add(cur.clone());
-            if (cur.p_xyz.z < safe_z)
+            /*if (cur.p_xyz.z < safe_z)
             {
                 cur.p_xyz.z = safe_z;
                 prog_cur.Add(cur);
-            }
+            }*/
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[6], take_manip_y[6], take_manip_z[6]), 0, vel_change));
             //prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " H", false));
 
@@ -3150,7 +3162,7 @@ namespace tcp_to_udp
             prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]), 0, vel_change));
             prog_cur.Add(new StepperFrame(2, 587, "I"+ rot_ind + " P" + take_manip_rot[4] + " L", false));
             prog_cur.Add(new StepperFrame(2, 587, "I" + vert_ind + " P" + take_manip_vert[1] + " L", false));
-            prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]+100), 0, vel_change));
+            prog_cur.Add(new StepperFrame(new Point3d_GL(take_manip_x[0], take_manip_y[0], take_manip_z[0]), 0, vel_change));
             //prog_cur.Add(new StepperFrame(2, 587, "I" + rot_ind + " P100 L", false));//without double not work
             return prog_cur.ToArray();
         }

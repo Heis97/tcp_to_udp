@@ -615,7 +615,8 @@ namespace tcp_to_udp
             {
                 if (!printer.tool_calibrated_auto[printer.tool_active])
                 {
-                    printer.offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
+                    printer.cur_coordinate_system = StepperPrinter.coordinate_system.INTERNAL;
+                    //printer.offset_frame.p_xyz = new Point3d_GL(0, 0, 0);
                     double save_dist_nossle = 10;
                     printer.calibrate_nossle_stage_counter = 0;
 
