@@ -566,27 +566,46 @@ namespace tcp_to_udp
             {
 
                 var prog_cur = new List<StepperFrame>();
-                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_open_val, false));
-                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_open_val), false));
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_change_pos + " L", false));
-                prog_cur.Add(new StepperFrame(2, 587, "I2 P" + printer.settins_string.lift_up_val + " L", false));
-                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_close_val, false));
-                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_close_val), false));
-                prog_cur.Add(new StepperFrame(2, 587, "I2 H"));
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_work_pos + " L", false));
+                if(printer.cover_up)
+                {
+                    prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_open_val, false));
+                    prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_open_val), false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_change_pos + " L", false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I2 P" + printer.settins_string.lift_up_val + " L", false));
+                    prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_close_val, false));
+                    prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_close_val), false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I2 H"));
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_work_pos + " L", false));
+                }
+                else
+                {
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 H", false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_work_pos + " L", false));
+
+                }
+                
                 printer.start_alternate_prog(prog_cur.ToArray());
             }
 
             else if (command.Contains("M624"))//set give tablet
             {
-
                 var prog_cur = new List<StepperFrame>();
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_change_pos + " L", false));
-                prog_cur.Add(new StepperFrame(2, 587, "I2 P" + printer.settins_string.lift_up_val + " L", false));
-                prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_open_val, false));
-                prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_open_val), false));
-                prog_cur.Add(new StepperFrame(2, 587, "I2 H", false));
-                prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_open_pos + " L", false));
+                if (printer.cover_up)
+                {
+
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_change_pos + " L", false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I2 P" + printer.settins_string.lift_up_val + " L", false));
+                    prog_cur.Add(new StepperFrame(2, 577, "I0 V" + printer.settins_string.servo_open_val, false));
+                    prog_cur.Add(new StepperFrame(2, 577, "I1 V" + (180 - printer.settins_string.servo_open_val), false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I2 H", false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_open_pos + " L", false));
+                }
+                else
+                {
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 H", false));
+                    prog_cur.Add(new StepperFrame(2, 587, "I0 P" + printer.settins_string.table_open_pos + " L", false));
+
+                }
                 printer.start_alternate_prog(prog_cur.ToArray());
             }
             else if (command.Contains("M630"))//home manipulators
