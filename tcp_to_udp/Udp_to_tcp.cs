@@ -1849,7 +1849,7 @@ namespace tcp_to_udp
                 }
             }
         }
-        }
+        
         public void auto_setup_cams()
         {
             var frms_st =(Mat[]) last_frame.Clone();
