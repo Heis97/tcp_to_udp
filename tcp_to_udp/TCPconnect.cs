@@ -263,7 +263,7 @@ namespace tcp_to_udp
             }
             if (res == null && out_now.Length == 0)
             {
-                System.Threading.Thread.Sleep(1);   // раньше цикл без паузы занимал целое ядро
+                //System.Threading.Thread.Sleep(1);   // раньше цикл без паузы занимал целое ядро
             }
         }
         public IPEndPoint get_client()

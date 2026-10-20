@@ -4006,14 +4006,14 @@ namespace tcp_to_udp
                 }
                 else
                 {
-                    /*if (last_type_line != StepperLine.LineType.arc)
+                    if (last_type_line != StepperLine.LineType.arc)
                     {
                         //Console.WriteLine("step_lines[step_lines.Count-1]");
                         first_p = frames[i - 1].p_xyz;
                     }
-                    var line = new StepperLine(first_p, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);*/
+                    var line = new StepperLine(first_p, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
 
-                    var line = new StepperLine(first_p = frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
+                   // var line = new StepperLine(first_p = frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                     step_lines.Add(line);
                 }
             }

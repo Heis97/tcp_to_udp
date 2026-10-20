@@ -514,7 +514,7 @@ namespace tcp_to_udp
                 {
                     prog_num_take = 2;
                 }
-                if (prog_cur != null)  prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, printer.settins_string, last_frame.clone(), printer.safe_z_internal));
+                if (prog_cur != null && prog_num_take>=0)  prog_cur.AddRange(StepperPrinter.gen_change_prog(prog_num_take, printer.settins_string, last_frame.clone(), printer.safe_z_internal));
 
                 if (prog_cur != null)
                 {
