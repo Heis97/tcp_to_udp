@@ -1646,11 +1646,11 @@ namespace tcp_to_udp
              settins_string.offset_plate_z = new double[ps_take];
 
              settins_string.calibrate_nossles_offset_z = new double[ps_take];*/
-            printer.settins_string.soft_min_pos1 = new int[8];
+            /*printer.settins_string.soft_min_pos1 = new int[8];
             printer.settins_string.soft_max_pos1 = new int[8];
 
             printer.settins_string.soft_min_pos2 = new int[8];
-            printer.settins_string.soft_max_pos2 = new int[8];
+            printer.settins_string.soft_max_pos2 = new int[8];*/
 
 
 
