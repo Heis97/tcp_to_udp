@@ -9,7 +9,7 @@
 using System.Diagnostics;
 using tcp_to_udp;
 
-namespace tcp_to_udp
+/*namespace tcp_to_udp
 {
     internal static class Program
     {
@@ -114,5 +114,5 @@ namespace tcp_to_udp
             Console.ReadKey();
         }
     }
-}
+}*/
 

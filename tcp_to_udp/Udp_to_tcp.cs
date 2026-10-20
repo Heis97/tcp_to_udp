@@ -30,7 +30,8 @@ namespace tcp_to_udp
     {
 
         private static bool[] _isStreaming = new bool[3];
-        private static VideoCapture[] _cameras = new VideoCapture[3];
+        // Камеры через DirectShow: кадры MJPG от камеры уходят в UDP как есть (CameraMjpg.cs)
+        private static CameraMjpg[] _cameras = new CameraMjpg[3];
 
         TCPclient tcp_client_main;
         int device_numb = 0;
@@ -69,7 +70,6 @@ namespace tcp_to_udp
         volatile int[] ports_cam_orig = { 5000, 5001, 5002 };//bef, aft, pound
         volatile int[] ports_cam = { 5000, 5001, 5002 };
 
-        volatile Mat[] last_frame = new Mat[3];
 
         //int[] ports_cam = { 5000, 5001, 5002 };
 
@@ -251,7 +251,8 @@ namespace tcp_to_udp
                     //Console.WriteLine(ind_cam + " " + val);
                     if (command.Contains("M590"))
                     {
-                        _cameras[ind_cam].Set(Emgu.CV.CvEnum.CapProp.Exposure, val);
+                        if (ind_cam >= 0 && ind_cam < _cameras.Length && _cameras[ind_cam] != null)
+                            _cameras[ind_cam].SetExposure(val);
                     }
                     else if (command.Contains("M591"))
                     {
@@ -1630,29 +1631,6 @@ namespace tcp_to_udp
             printer.settins_string = load_obj<SettingsString>("settings_printer.json");
 
 
-            // settins_string.soft_max_pos2 = new int[2];
-            /*int ps_take = 10;
-
-            settins_string.take_right_manip_rot = new int[ps_take];
-            settins_string.take_right_manip_vert = new int[ps_take];
-
-            settins_string.take_right_manip_x = new double[ps_take];
-            settins_string.take_right_manip_y = new double[ps_take];
-            settins_string.take_right_manip_z = new double[ps_take];*/
-
-            /* int ps_take = 10;
-             settins_string.offset_plate_x = new double[ps_take];
-             settins_string.offset_plate_y = new double[ps_take];
-             settins_string.offset_plate_z = new double[ps_take];
-
-             settins_string.calibrate_nossles_offset_z = new double[ps_take];*/
-            /*printer.settins_string.soft_min_pos1 = new int[8];
-            printer.settins_string.soft_max_pos1 = new int[8];
-
-            printer.settins_string.soft_min_pos2 = new int[8];
-            printer.settins_string.soft_max_pos2 = new int[8];*/
-
-
 
             for (int i = 0; i<printer.settins_string.motors_count1;i++)
             {
@@ -1665,7 +1643,6 @@ namespace tcp_to_udp
                     " D" + printer.settins_string.motor_dir1[i] +
                     " R" + printer.settins_string.steps_per_mm1[i] +
                     " K" + printer.settins_string.home_dir1[i] +
-                    " B" + printer.settins_string.home_pos1[i] +
                     "\n");
             }
 
@@ -1690,7 +1667,6 @@ namespace tcp_to_udp
                     " D" + printer.settins_string.motor_dir2[i] +
                     " R" + printer.settins_string.steps_per_mm2[i] +
                     " K" + printer.settins_string.home_dir2[i] +
-                    " B" + printer.settins_string.home_pos2[i] +
                     "\n");
             }
             for (int i = 0; i < printer.settins_string.motors_count2; i++)
@@ -1749,119 +1725,61 @@ namespace tcp_to_udp
 
             return vals;
         }
-        static int[,] cam_size = { { 1920, 1080, 80 }, { 1920, 1080, 80 }, { 640, 480, 70 } };
-        Thread start_cam(int ind,int port)
+        // Режим MJPG по камерам: {ширина, высота}. Камера должна иметь такой режим MJPG
+        // (у A4tech FHD: 1920x1080, 1280x720, 800x600, 640x480, 640x360, 320x240 — все 30 к/с).
+        static int[,] cam_size = { { 1920, 1080 }, { 1920, 1080 }, { 640, 480 } };
+
+        Thread start_cam(int ind, int port)
         {
-            // Параметры UDP
-
-            int clientPort = port; // Порт клиента
-            //_cameras[ind] = new VideoCapture("@device:pnp:\\\\?\\usb#USB#VID_09DA&PID_2695&MI_00#9&26DAA0E0&1&0000#{65E8773D-8F56-11D0-A3B9-00A0C9223196", VideoCapture.API.DShow);
-            _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow);// 0 - индекс камеры по умолчанию  //
-            // Порядок важен — так устроен модуль DirectShow в OpenCV:
-            // 1) частота — первой: позже она перезапускает камеру без формата (возврат в YUY2);
-            // 2) размер; 3) формат MJPG — последним: камера перезапускается в нужном
-            //    размере именно с этим форматом. После формата Fps и размер больше не задавать.
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth, cam_size[ind, 0]);
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, cam_size[ind, 1]);
-            if (cam_size[ind, 0] > 640)
-                _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G'));
-
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Exposure, -7);
-
-
-
-            Console.WriteLine(_cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameWidth) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameHeight) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.Fps) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FourCC));
-            if (!_cameras[ind].IsOpened)
+            // Кадр JPEG от камеры уходит в UDP как есть: без распаковки и повторного сжатия.
+            // Отдельный поток не нужен — кадры приходят из потока DirectShow (событие FrameReady).
+            var cam = CameraMjpg.Open(ind, cam_size[ind, 0], cam_size[ind, 1], 30, out string err);
+            if (cam == null)
             {
-                Console.WriteLine("Ошибка: не удалось открыть камеру!");
+                Console.WriteLine("cam" + ind + ": камера не открылась: " + err);
                 return null;
             }
+            cam.SetExposure(-7);
+            Console.WriteLine("cam" + ind + ": " + cam.Name + ", MJPG " + cam.Width + "x" + cam.Height + " " + cam.Fps + " fps");
 
-            Console.WriteLine("Начало видеопотока через UDP...  "+ind);
-            Thread streamThread = new Thread(() => StreamVideo(ind));
-            streamThread.Start();
-
-            _isStreaming[ind] = true;
-            return streamThread;
-        }
-        static string fourcc_text(VideoCapture cap)
-        {
-            int f = (int)cap.Get(Emgu.CV.CvEnum.CapProp.FourCC);
-            return "" + (char)(f & 255) + (char)((f >> 8) & 255) + (char)((f >> 16) & 255) + (char)((f >> 24) & 255) + " (" + f + ")";
-        }
-        void StreamVideo(int ind)
-        {
-            using (UdpClient udpSender = new UdpClient())
+            var udpSender = new UdpClient();
+            udpSender.Client.SendBufferSize = 4 * 1024 * 1024;   // кадр FullHD уходит пачкой частей
+            uint frame_id = 0;
+            cam.FrameReady += (c, jpeg) =>
             {
-                udpSender.Client.SendBufferSize = 4 * 1024 * 1024;
-                Mat frame = new Mat();
-                uint frame_id = 0;
-                // ДИАГНОСТИКА (только замеры, работу не меняет): раз в 5 с в консоль —
-                // формат камеры, кадры с камеры и отправленные кадры в секунду, время каждого этапа
-                var d_sw = System.Diagnostics.Stopwatch.StartNew();
-                long d_read = 0, d_clone = 0, d_enc = 0, d_send = 0, d_bytes = 0;
-                int d_frames = 0, d_empty = 0, d_sent = 0, d_pkts = 0;
-                while (_isStreaming[ind])
+                var client = _TCPserver1.get_client();
+                if (client == null) return;
+                try
                 {
-                    long d_t = d_sw.ElapsedTicks;
-                    _cameras[ind].Read(frame);
-                    d_read += d_sw.ElapsedTicks - d_t; d_t = d_sw.ElapsedTicks;
-                    last_frame[ind] = frame.Clone();
-                    d_clone += d_sw.ElapsedTicks - d_t;
-                    if (frame.IsEmpty) d_empty++; else d_frames++;
-                    if (!frame.IsEmpty)
-                    {
-                        d_t = d_sw.ElapsedTicks;
-                        byte[] jpegBytes = FrameToJpegBytesEmgu(frame, cam_size[ind, 2]);
-                        d_enc += d_sw.ElapsedTicks - d_t;
-                        var client = _TCPserver1.get_client();
-                        if (client != null)
-                        {
-                            try
-                            {
-                                d_t = d_sw.ElapsedTicks;
-                                send_frame_udp(udpSender, new IPEndPoint(client.Address, ports_cam[ind]), jpegBytes, frame_id++);
-                                d_send += d_sw.ElapsedTicks - d_t;
-                                d_sent++; d_bytes += jpegBytes.Length; d_pkts += (jpegBytes.Length + FRAG_PAYLOAD - 1) / FRAG_PAYLOAD;
-                            }
-                            catch (Exception e) { Console.WriteLine("cam" + ind + ": " + e.Message); }
-                        }
-                    }
-
-                    Thread.Sleep(3);
-                    if (d_sw.ElapsedMilliseconds >= 5000)
-                    {
-                        double sec = d_sw.ElapsedMilliseconds / 1000.0;
-                        double ms = 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-                        int n = Math.Max(1, d_frames), ns = Math.Max(1, d_sent);
-                        Console.WriteLine("ДИАГ cam" + ind + ": формат " + fourcc_text(_cameras[ind]) +
-                            " " + frame.Width + "x" + frame.Height +
-                            " | с камеры " + (d_frames / sec).ToString("0.0") + " к/с (пустых " + d_empty + ")" +
-                            " | отправлено " + (d_sent / sec).ToString("0.0") + " к/с, " + (d_pkts / (double)ns).ToString("0.0") +
-                            " пакета/кадр, " + (d_bytes / ns / 1024) + " КБ/кадр" +
-                            " | мс на кадр: Read " + (d_read * ms / n).ToString("0.0") +
-                            ", Clone " + (d_clone * ms / n).ToString("0.0") +
-                            ", JPEG " + (d_enc * ms / n).ToString("0.0") +
-                            ", UDP " + (d_send * ms / ns).ToString("0.0"));
-                        d_sw.Restart();
-                        d_read = d_clone = d_enc = d_send = d_bytes = 0;
-                        d_frames = d_empty = d_sent = d_pkts = 0;
-                    }
+                    send_frame_udp(udpSender, new IPEndPoint(client.Address, ports_cam[ind]), jpeg, frame_id++);
                 }
-            }
+                catch (Exception e) { Console.WriteLine("cam" + ind + ": " + e.Message); }
+            };
+            _cameras[ind] = cam;
+            _isStreaming[ind] = true;
+            Console.WriteLine("Начало видеопотока через UDP...  " + ind);
+            return null;
         }
-        
+
+        // Распакованные последние кадры камер — только по запросу (калибровка по изображению)
+        Mat[] decode_last_frames()
+        {
+            var res = new Mat[_cameras.Length];
+            for (int i = 0; i < _cameras.Length; i++)
+                res[i] = _cameras[i]?.DecodeLast();
+            return res;
+        }
+
         public void auto_setup_cams()
         {
-            var frms_st =(Mat[]) last_frame.Clone();
+            var frms_st =decode_last_frames();
             CvInvoke.Imshow("st1", frms_st[1]);
             _TCPserver1.pushBuffer_in("M585 A R0\n");
             _TCPserver1.pushBuffer_in("M585 C R0\n");
             Thread.Sleep(500);
             _TCPserver1.pushBuffer_in("M585 A R255\n");
             Thread.Sleep(500);
-            var frms_bef = (Mat[])last_frame.Clone();
+            var frms_bef = decode_last_frames();
             CvInvoke.Imshow("bef1", frms_bef[1]);
             Thread.Sleep(500);
             _TCPserver1.pushBuffer_in("M585 A R0\n");
@@ -1869,7 +1787,7 @@ namespace tcp_to_udp
             _TCPserver1.pushBuffer_in("M585 C R255\n");
             Thread.Sleep(500);
             _TCPserver1.pushBuffer_in("M585 C R0\n");
-            var frms_aft = (Mat[])last_frame.Clone();
+            var frms_aft = decode_last_frames();
 
             var delt_bef = comp_delt_mats(frms_st, frms_bef);
             var delt_aft = comp_delt_mats(frms_st, frms_aft);

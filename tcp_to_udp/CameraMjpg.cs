@@ -243,7 +243,7 @@ namespace tcp_to_udp
         {
             if (_cameraControl == null) return "нет управления камерой";
             int hr = _cameraControl.GetRange(CameraControlProperty.Exposure, out int min, out int max, out int step, out int def, out CameraControlFlags flags);
-            return hr < 0 ? "недоступна" : min + "…" + max + " (шаг " + step + ", по умолчанию " + def + ")";
+            return hr < 0 ? "недоступна" : min + ".." + max + " (шаг " + step + ", по умолчанию " + def + ")";
         }
 
         // ── таблицы Хаффмана ───────────────────────────────────────────────────

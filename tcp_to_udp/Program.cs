@@ -6,7 +6,7 @@ using System.Text;
 
 namespace tcp_to_udp
 {
-    /*internal class Program
+    internal class Program
     {
         static void Main(string[] args)
         {
@@ -33,6 +33,6 @@ namespace tcp_to_udp
 
 
 
-    }*/
+    }
 
 }
