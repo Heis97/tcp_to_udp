@@ -1749,7 +1749,7 @@ namespace tcp_to_udp
 
             return vals;
         }
-        static int[,] cam_size = { { 640, 480, 70 }, { 640, 480, 70 }, { 640, 480, 70 } };
+        static int[,] cam_size = { { 1920, 1080, 80 }, { 1920, 1080, 80 }, { 640, 480, 70 } };
         Thread start_cam(int ind,int port)
         {
             // Параметры UDP
@@ -1769,7 +1769,7 @@ namespace tcp_to_udp
 
 
 
-            Console.WriteLine(_cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameWidth) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameHeight) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.Fps));
+            Console.WriteLine(_cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameWidth) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FrameHeight) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.Fps) + " " + _cameras[ind].Get(Emgu.CV.CvEnum.CapProp.FourCC));
             if (!_cameras[ind].IsOpened)
             {
                 Console.WriteLine("Ошибка: не удалось открыть камеру!");
@@ -1846,6 +1846,8 @@ namespace tcp_to_udp
                         d_read = d_clone = d_enc = d_send = d_bytes = 0;
                         d_frames = d_empty = d_sent = d_pkts = 0;
                     }
+
+                    Thread.Sleep(15); // ~30 FPS
                 }
             }
         }
