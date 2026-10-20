@@ -1783,45 +1783,69 @@ namespace tcp_to_udp
             _isStreaming[ind] = true;
             return streamThread;
         }
-
+        static string fourcc_text(VideoCapture cap)
+        {
+            int f = (int)cap.Get(Emgu.CV.CvEnum.CapProp.FourCC);
+            return "" + (char)(f & 255) + (char)((f >> 8) & 255) + (char)((f >> 16) & 255) + (char)((f >> 24) & 255) + " (" + f + ")";
+        }
         void StreamVideo(int ind)
         {
             using (UdpClient udpSender = new UdpClient())
             {
                 udpSender.Client.SendBufferSize = 4 * 1024 * 1024;
-                //IPEndPoint clientEndpoint = new IPEndPoint(_TCPserver1.get_client().Address, port);
                 Mat frame = new Mat();
                 uint frame_id = 0;
+                // ДИАГНОСТИКА (только замеры, работу не меняет): раз в 5 с в консоль —
+                // формат камеры, кадры с камеры и отправленные кадры в секунду, время каждого этапа
+                var d_sw = System.Diagnostics.Stopwatch.StartNew();
+                long d_read = 0, d_clone = 0, d_enc = 0, d_send = 0, d_bytes = 0;
+                int d_frames = 0, d_empty = 0, d_sent = 0, d_pkts = 0;
                 while (_isStreaming[ind])
                 {
+                    long d_t = d_sw.ElapsedTicks;
                     _cameras[ind].Read(frame);
+                    d_read += d_sw.ElapsedTicks - d_t; d_t = d_sw.ElapsedTicks;
                     last_frame[ind] = frame.Clone();
-                    //CvInvoke.Resize(frame, frame, new Size(640, 480));
+                    d_clone += d_sw.ElapsedTicks - d_t;
+                    if (frame.IsEmpty) d_empty++; else d_frames++;
                     if (!frame.IsEmpty)
                     {
-
-                        //byte[] jpegBytes = FrameToJpegBytesEmgu(frame);
+                        d_t = d_sw.ElapsedTicks;
                         byte[] jpegBytes = FrameToJpegBytesEmgu(frame, cam_size[ind, 2]);
-                        //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
-                       // if (jpegBytes.Length<65000)
+                        d_enc += d_sw.ElapsedTicks - d_t;
                         var client = _TCPserver1.get_client();
                         if (client != null)
                         {
-                            //udpSender.Send(jpegBytes, jpegBytes.Length, new IPEndPoint(_TCPserver1.get_client().Address, ports_cam[ind]));
                             try
                             {
+                                d_t = d_sw.ElapsedTicks;
                                 send_frame_udp(udpSender, new IPEndPoint(client.Address, ports_cam[ind]), jpegBytes, frame_id++);
+                                d_send += d_sw.ElapsedTicks - d_t;
+                                d_sent++; d_bytes += jpegBytes.Length; d_pkts += (jpegBytes.Length + FRAG_PAYLOAD - 1) / FRAG_PAYLOAD;
                             }
-                        catch (Exception e) { Console.WriteLine("cam" + ind + ": " + e.Message); }
-
+                            catch (Exception e) { Console.WriteLine("cam" + ind + ": " + e.Message); }
                         }
-
-
-                        // udpSender.Send(jpegBytes, 65536, clientEndpoint);
-
                     }
 
-                    Thread.Sleep(15); // ~30 FPS
+                    Thread.Sleep(3);
+                    if (d_sw.ElapsedMilliseconds >= 5000)
+                    {
+                        double sec = d_sw.ElapsedMilliseconds / 1000.0;
+                        double ms = 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                        int n = Math.Max(1, d_frames), ns = Math.Max(1, d_sent);
+                        Console.WriteLine("ДИАГ cam" + ind + ": формат " + fourcc_text(_cameras[ind]) +
+                            " " + frame.Width + "x" + frame.Height +
+                            " | с камеры " + (d_frames / sec).ToString("0.0") + " к/с (пустых " + d_empty + ")" +
+                            " | отправлено " + (d_sent / sec).ToString("0.0") + " к/с, " + (d_pkts / (double)ns).ToString("0.0") +
+                            " пакета/кадр, " + (d_bytes / ns / 1024) + " КБ/кадр" +
+                            " | мс на кадр: Read " + (d_read * ms / n).ToString("0.0") +
+                            ", Clone " + (d_clone * ms / n).ToString("0.0") +
+                            ", JPEG " + (d_enc * ms / n).ToString("0.0") +
+                            ", UDP " + (d_send * ms / ns).ToString("0.0"));
+                        d_sw.Restart();
+                        d_read = d_clone = d_enc = d_send = d_bytes = 0;
+                        d_frames = d_empty = d_sent = d_pkts = 0;
+                    }
                 }
             }
         }
