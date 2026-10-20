@@ -1846,10 +1846,9 @@ namespace tcp_to_udp
                         d_read = d_clone = d_enc = d_send = d_bytes = 0;
                         d_frames = d_empty = d_sent = d_pkts = 0;
                     }
-
-                    Thread.Sleep(15); // ~30 FPS
                 }
             }
+        }
         }
         public void auto_setup_cams()
         {
