@@ -1639,13 +1639,17 @@ namespace tcp_to_udp
             settins_string.take_right_manip_y = new double[ps_take];
             settins_string.take_right_manip_z = new double[ps_take];*/
 
-           /* int ps_take = 10;
-            settins_string.offset_plate_x = new double[ps_take];
-            settins_string.offset_plate_y = new double[ps_take];
-            settins_string.offset_plate_z = new double[ps_take];
+            /* int ps_take = 10;
+             settins_string.offset_plate_x = new double[ps_take];
+             settins_string.offset_plate_y = new double[ps_take];
+             settins_string.offset_plate_z = new double[ps_take];
 
-            settins_string.calibrate_nossles_offset_z = new double[ps_take];*/
+             settins_string.calibrate_nossles_offset_z = new double[ps_take];*/
+            printer.settins_string.soft_min_pos1 = new int[8];
+            printer.settins_string.soft_max_pos1 = new int[8];
 
+            printer.settins_string.soft_min_pos2 = new int[8];
+            printer.settins_string.soft_max_pos2 = new int[8];
 
             for (int i = 0; i<printer.settins_string.motors_count1;i++)
             {
@@ -1662,6 +1666,17 @@ namespace tcp_to_udp
                     "\n");
             }
 
+            for (int i = 0; i<printer.settins_string.motors_count1;i++)
+            {
+                
+                _TCPserver1.pushBuffer_in("num1 M587" + 
+                    " I" + i + 
+                    " X" + printer.settins_string.soft_min_pos1[i] +
+                    " Y" + printer.settins_string.soft_max_pos1[i] +
+                    " Z1"+
+                    "\n");
+            }
+
             for (int i = 0; i < printer.settins_string.motors_count2; i++)
             {
                 _TCPserver1.pushBuffer_in("num2 M587" +
@@ -1675,7 +1690,16 @@ namespace tcp_to_udp
                     " B" + printer.settins_string.home_pos2[i] +
                     "\n");
             }
+            for (int i = 0; i < printer.settins_string.motors_count2; i++)
+            {
 
+                _TCPserver1.pushBuffer_in("num2 M587" +
+                    " I" + i +
+                    " X" + printer.settins_string.soft_min_pos2[i] +
+                    " Y" + printer.settins_string.soft_max_pos2[i] +
+                    " Z1" +
+                    "\n");
+            }
 
             _TCPserver1.pushBuffer_in("num1 M581 I2 A0\n");
             save_obj("settings_printer.json", printer.settins_string);
