@@ -1757,13 +1757,15 @@ namespace tcp_to_udp
             int clientPort = port; // Порт клиента
             //_cameras[ind] = new VideoCapture("@device:pnp:\\\\?\\usb#USB#VID_09DA&PID_2695&MI_00#9&26DAA0E0&1&0000#{65E8773D-8F56-11D0-A3B9-00A0C9223196", VideoCapture.API.DShow);
             _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow);// 0 - индекс камеры по умолчанию  //
+            // Порядок важен — так устроен модуль DirectShow в OpenCV:
+            // 1) частота — первой: позже она перезапускает камеру без формата (возврат в YUY2);
+            // 2) размер; 3) формат MJPG — последним: камера перезапускается в нужном
+            //    размере именно с этим форматом. После формата Fps и размер больше не задавать.
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth, cam_size[ind, 0]);
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, cam_size[ind, 1]);
             if (cam_size[ind, 0] > 640)
                 _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G'));
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth, cam_size[ind, 0]);
-
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, cam_size[ind, 1]);
-
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);
 
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Exposure, -7);
 
