@@ -205,7 +205,7 @@ namespace tcp_to_udp
         {
             foreach (var command in coms)
             {
-                //Console.WriteLine("command: " + command);
+                Console.WriteLine("command: " + command);
                 if (command.Length > 3)
                 {
                     if (command.Contains("num1"))
@@ -232,7 +232,7 @@ namespace tcp_to_udp
 
         public void exec_main_prog(string command)
         {
-
+            
 
             var com_board = command.Replace("main", "").Trim();
             if (command.Contains("M590") || command.Contains("M591"))
@@ -1677,7 +1677,7 @@ namespace tcp_to_udp
             }
 
 
-            _TCPserver1.pushBuffer_in("num1 M581 I2 A0");
+            _TCPserver1.pushBuffer_in("num1 M581 I2 A0\n");
             save_obj("settings_printer.json", printer.settins_string);
 
         }

@@ -1831,26 +1831,26 @@ namespace tcp_to_udp
         public int safe_len_send_val = 40;
 
 
-        static double steps_xyz = 800;//800
+        /*static double steps_xyz = 800;//800
         public double R = 176.5;// 141; //150
         public double r = 47.5;//34;  //40
         public double l = 320;//218;  //215
         public double printing_r = 100;
         public double a_off = 0;// 0.3; //0
         public double b_off = 0;// 0.24; //0 
-        static public double printer_max_acs = 50;//500
+        static public double printer_max_acs = 50;//500*/
 
 
 
 
-        /*static double steps_xyz = 80;
+        static double steps_xyz = 80;
         public double R =  141; //150
         public double r = 34;  //40
         public double l = 218;  //215
         public double printing_r = 100;
         public double a_off =  0.3; //0
         public double b_off =  0.24; //0
-        static public double printer_max_acs = 500;//500*/
+        static public double printer_max_acs = 500;//500
 
         public bool all_motors_stop1 = false;
         public bool all_motors_stop2 = true;
@@ -2183,24 +2183,26 @@ namespace tcp_to_udp
                         if (lit == 'E') e_cur = val_parsed;
                         if (lit == 'F') vel_cur = val_parsed * k_vel;
 
-                        if (pos_rel)
-                        {
-                            p_abs += new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
-                        }
-                        else
-                        {
-                            p_abs = new Point3d_GL(p_cur.x, p_cur.y, p_cur.z) + p_offs;
-                        }
+                        
+                    }
+
+                    if (pos_rel)
+                    {
+                        p_abs += new Point3d_GL(p_cur.x, p_cur.y, p_cur.z);
+                    }
+                    else
+                    {
+                        p_abs = new Point3d_GL(p_cur.x, p_cur.y, p_cur.z) + p_offs;
+                    }
 
 
-                        if (extr_rel || pos_rel)
-                        {
-                            e_abs += e_cur;
-                        }
-                        else
-                        {
-                            e_abs = e_cur + e_offs;
-                        }
+                    if (extr_rel || pos_rel)
+                    {
+                        e_abs += e_cur;
+                    }
+                    else
+                    {
+                        e_abs = e_cur + e_offs;
                     }
                     Console.WriteLine("e_abs: " + e_abs + "; e_cur: " + e_cur + "; e_offs: " + e_offs + "; pos_rel: " + pos_rel);
                     coms.Add(new StepperFrame(p_abs.Clone(), e_abs, vel_cur));
@@ -2227,7 +2229,7 @@ namespace tcp_to_udp
                         if (lit == 'P') wait_ms = val_parsed;
                     }
 
-                    coms.Add(new StepperFrame(1, 589, "P" + wait_ms + 1000 * wait_s));
+                    coms.Add(new StepperFrame(1, 589, "P" + (wait_ms + 1000 * wait_s).ToString()));
                 }
 
                 if (vals[0].Contains("G28"))
@@ -2452,11 +2454,11 @@ namespace tcp_to_udp
         }
         static public double parse_double(string str)
         {
-            try
-            {
-                return double.Parse(str);
-            }
-            catch { return double.NaN; }
+            double v;
+
+            return double.TryParse(str, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v) ? v : double.NaN;
+
+
         }
 
 
@@ -4004,7 +4006,14 @@ namespace tcp_to_udp
                 }
                 else
                 {
-                    var line = new StepperLine(frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
+                    /*if (last_type_line != StepperLine.LineType.arc)
+                    {
+                        //Console.WriteLine("step_lines[step_lines.Count-1]");
+                        first_p = frames[i - 1].p_xyz;
+                    }
+                    var line = new StepperLine(first_p, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);*/
+
+                    var line = new StepperLine(first_p = frames[i - 1].p_xyz, frames[i].p_xyz, frames[i].vel, acs, frames[i - 1].vel, frames[i].vel, frames[i].e_width);
                     step_lines.Add(line);
                 }
             }

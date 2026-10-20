@@ -138,13 +138,18 @@ namespace tcp_to_udp
     public class TCPserver
     {
         int port; // порт для прослушивания подключений
-        public volatile StringBuilder buffer_in = new StringBuilder();
+        //public volatile StringBuilder buffer_in = new StringBuilder();
+        readonly object _lock_in = new object();
+        readonly object _lock_out = new object();
+        public StringBuilder buffer_in = new StringBuilder();
+
         volatile int len;
         //string buffer_in = "";
-        public string buffer_out = "";
-        private static StringBuilder _response;
-        private static NetworkStream _stream;
-        public bool connected = false;
+        public volatile string buffer_out = "";
+        private StringBuilder _response;
+        private NetworkStream _stream;
+        private TcpClient _client;
+        public volatile bool connected = false;
         public IPAddress remoteIPAddress = null;
         public IPEndPoint remoteIpEndPoint = null;
 
@@ -158,12 +163,22 @@ namespace tcp_to_udp
         }
         public string getBuffer()
         {
-            
-            var ret = buffer_in;
-            buffer_in = new StringBuilder();
-            len = 0;
+
+            //var ret = buffer_in;
+            //buffer_in = new StringBuilder();
+            //len = 0;
             //Console.WriteLine("getBuffer: " + ret);
-            return ret.ToString();
+            //return ret.ToString();
+            lock (_lock_in)
+            {
+                var all = buffer_in.ToString();
+                int k = all.LastIndexOf('\n');
+                if (k < 0) return "";
+                buffer_in.Clear();
+                buffer_in.Append(all, k + 1, all.Length - k - 1);
+                len = buffer_in.Length;
+                return all.Substring(0, k + 1);
+            }
         }
         public int getBufferLen()
         {
@@ -173,58 +188,64 @@ namespace tcp_to_udp
         public void pushBuffer(string data)
         {
             //Console.Write(data);
-            buffer_out += data;
+            lock (_lock_out)  buffer_out += data;
         }
 
         public void pushBuffer_in(string data)
         {
-            //Console.Write(data);
-            buffer_in.Append(data);
-            len = buffer_in.ToString().Length;
-            
+            lock (_lock_in)
+            {
+                buffer_in.Append(data);
+                len = buffer_in.Length;
+            }
         }
         public void send_mes(string send_prog)
         {
-            try
-            {
-                byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
-                _stream.Write(send, 0, send.Length);
-            }
-            catch (System.IO.IOException e ) 
-            {
-                wait_client();
-            }
+           
+            byte[] send = System.Text.Encoding.UTF8.GetBytes(send_prog);
+            _stream.Write(send, 0, send.Length);
+
             
         }
 
 
         public string reseav()
         {
-            byte[] data = new byte[1024];
+            if (_client.Client.Poll(0, SelectMode.SelectRead) && _client.Client.Available == 0) throw new System.IO.IOException("клиент отключился");
+            if (!_stream.DataAvailable) return null;
+
+
+            byte[] data = new byte[4096];
             _response.Clear();
-            if (_stream.DataAvailable)
+            
+            do
             {
-                do
-                {
-                    int bytes = _stream.Read(data, 0, data.Length);
-                    _response.Append(Encoding.UTF8.GetString(data, 0, bytes));
+                int bytes = _stream.Read(data, 0, data.Length);
+                if (bytes <= 0) throw new System.IO.IOException("клиент отключился");
+                _response.Append(Encoding.UTF8.GetString(data, 0, bytes));
 
-                }
-                while (_stream.DataAvailable);
+            }
+            while (_stream.DataAvailable);
 
-                return _response.ToString();
-            }
-            else
-            {
-                return null;
-            }
+            return _response.ToString();
+           
         }
 
         public void handle()
         {
             var res = reseav();
-            if (res != null)
+            if (!string.IsNullOrEmpty(res))
             {
+                pushBuffer_in(res);
+
+            }
+            string out_now;
+            lock (_lock_out)
+            {
+                out_now = buffer_out.Length > 10000 ? "" : buffer_out;
+                buffer_out = "";
+            }
+            /*{
                 if (res.Length > 3)
                 {
                     //Console.WriteLine("res: " + res);
@@ -233,13 +254,16 @@ namespace tcp_to_udp
                 }
             }
             if (buffer_out.Length > 10000)
+        {
+            buffer_out = "";
+        }*/
+            if (out_now.Length > 0)
             {
-                buffer_out = "";
+                send_mes(out_now);
             }
-            if (buffer_out.Length > 0)
+            if (res == null && out_now.Length == 0)
             {
-                send_mes(buffer_out);
-                buffer_out = "";
+                System.Threading.Thread.Sleep(1);   // раньше цикл без паузы занимал целое ядро
             }
         }
         public IPEndPoint get_client()
@@ -248,30 +272,53 @@ namespace tcp_to_udp
         }
         public void wait_client()
         {
-            Console.WriteLine("wait");
-            TcpClient client = _server.AcceptTcpClient();
-            Console.WriteLine("client connected");
-            buffer_out = "";
-            connected = true;
-            try
-            {
-                remoteIpEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
-                remoteIPAddress = remoteIpEndPoint.Address;
-                int remotePort = remoteIpEndPoint.Port;
-
-                Console.WriteLine("Client IP Address is: " + remoteIPAddress.ToString());
-                Console.WriteLine("Client Port is: " + remotePort);
-            }
-            catch (SocketException ex)
-            {
-                Console.WriteLine("Error accessing RemoteEndPoint: " + ex.Message);
-                Console.ReadKey();
-            }
-            _stream = client.GetStream();
-            _response = new StringBuilder();
+            
             while (true)
             {
-                handle();
+                //handle();
+                Console.WriteLine("wait");
+                TcpClient client = _server.AcceptTcpClient();
+                Console.WriteLine("client connected");
+                //buffer_out = "";
+                //connected = true;
+                try
+                {
+                    remoteIpEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
+                    remoteIPAddress = remoteIpEndPoint.Address;
+                    Console.WriteLine("Client IP Address is: " + remoteIPAddress.ToString());
+                    Console.WriteLine("Client Port is: " + remoteIpEndPoint.Port);
+                }
+                catch (SocketException ex)
+                {
+                    Console.WriteLine("Error accessing RemoteEndPoint: " + ex.Message);
+                }
+                lock (_lock_out) { buffer_out = ""; }
+                lock (_lock_in) { buffer_in.Clear(); len = 0; }
+                _client = client;
+                _stream = client.GetStream();
+                _response = new StringBuilder();
+                connected = true;
+
+
+                try
+                {
+                    while (true)
+                    {
+                        handle();
+                    }
+                }
+                catch (Exception e) when (e is System.IO.IOException || e is SocketException
+                                          || e is ObjectDisposedException || e is InvalidOperationException)
+                {
+                    Console.WriteLine("client disconnected: " + e.Message);
+                }
+                finally
+                {
+                    connected = false;
+                    try { client.Close(); } catch (Exception) { }
+                }
+
+
             }
         }
         TcpListener _server;
