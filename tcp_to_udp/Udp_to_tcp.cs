@@ -22,6 +22,7 @@ using System.Diagnostics;
 using Encoder = System.Drawing.Imaging.Encoder;
 using System.Reflection;
 using Emgu.CV.Stitching;
+using Windows.Media.Protection.PlayReady;
 
 namespace tcp_to_udp
 {
@@ -1651,6 +1652,8 @@ namespace tcp_to_udp
             printer.settins_string.soft_min_pos2 = new int[8];
             printer.settins_string.soft_max_pos2 = new int[8];
 
+
+
             for (int i = 0; i<printer.settins_string.motors_count1;i++)
             {
                 
@@ -1746,7 +1749,7 @@ namespace tcp_to_udp
 
             return vals;
         }
-
+        static int[,] cam_size = { { 640, 480, 70 }, { 640, 480, 70 }, { 640, 480, 70 } };
         Thread start_cam(int ind,int port)
         {
             // Параметры UDP
@@ -1754,8 +1757,12 @@ namespace tcp_to_udp
             int clientPort = port; // Порт клиента
             //_cameras[ind] = new VideoCapture("@device:pnp:\\\\?\\usb#USB#VID_09DA&PID_2695&MI_00#9&26DAA0E0&1&0000#{65E8773D-8F56-11D0-A3B9-00A0C9223196", VideoCapture.API.DShow);
             _cameras[ind] = new VideoCapture(ind, VideoCapture.API.DShow);// 0 - индекс камеры по умолчанию  //
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth,640);
-            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, 480);
+            if (cam_size[ind, 0] > 640)
+                _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FourCC, VideoWriter.Fourcc('M', 'J', 'P', 'G'));
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameWidth, cam_size[ind, 0]);
+
+            _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.FrameHeight, cam_size[ind, 1]);
+
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Fps, 30);
 
             _cameras[ind].Set(Emgu.CV.CvEnum.CapProp.Exposure, -7);
@@ -1781,8 +1788,10 @@ namespace tcp_to_udp
         {
             using (UdpClient udpSender = new UdpClient())
             {
+                udpSender.Client.SendBufferSize = 4 * 1024 * 1024;
                 //IPEndPoint clientEndpoint = new IPEndPoint(_TCPserver1.get_client().Address, port);
                 Mat frame = new Mat();
+                uint frame_id = 0;
                 while (_isStreaming[ind])
                 {
                     _cameras[ind].Read(frame);
@@ -1791,16 +1800,25 @@ namespace tcp_to_udp
                     if (!frame.IsEmpty)
                     {
 
-                        byte[] jpegBytes = FrameToJpegBytesEmgu(frame);
+                        //byte[] jpegBytes = FrameToJpegBytesEmgu(frame);
+                        byte[] jpegBytes = FrameToJpegBytesEmgu(frame, cam_size[ind, 2]);
                         //Console.WriteLine($"Отправлен кадр: {jpegBytes.Length} байт");
-                        if(jpegBytes.Length<65000)
+                       // if (jpegBytes.Length<65000)
+                        var client = _TCPserver1.get_client();
+                        if (client != null)
                         {
-                            udpSender.Send(jpegBytes, jpegBytes.Length, new IPEndPoint(_TCPserver1.get_client().Address, ports_cam[ind]));
+                            //udpSender.Send(jpegBytes, jpegBytes.Length, new IPEndPoint(_TCPserver1.get_client().Address, ports_cam[ind]));
+                            try
+                            {
+                                send_frame_udp(udpSender, new IPEndPoint(client.Address, ports_cam[ind]), jpegBytes, frame_id++);
+                            }
+                        catch (Exception e) { Console.WriteLine("cam" + ind + ": " + e.Message); }
+
                         }
-                       
-                      
-                       // udpSender.Send(jpegBytes, 65536, clientEndpoint);
-                        
+
+
+                        // udpSender.Send(jpegBytes, 65536, clientEndpoint);
+
                     }
 
                     Thread.Sleep(15); // ~30 FPS
@@ -1862,6 +1880,25 @@ namespace tcp_to_udp
                 
             }
             return delts;
+        }
+        const int FRAG_PAYLOAD = 60000;   // одна машина (127.0.0.1); по сети лучше 1400 — без IP-фрагментации
+        static void send_frame_udp(UdpClient udp, IPEndPoint ep, byte[] jpeg, uint frame_id)
+        {
+            int count = (jpeg.Length + FRAG_PAYLOAD - 1) / FRAG_PAYLOAD;
+            if (count > ushort.MaxValue) return;
+            byte[] pkt = new byte[12 + FRAG_PAYLOAD];
+            pkt[0] = (byte)'B'; pkt[1] = (byte)'P'; pkt[2] = (byte)'F'; pkt[3] = (byte)'1';
+            pkt[4] = (byte)(frame_id >> 24); pkt[5] = (byte)(frame_id >> 16);
+            pkt[6] = (byte)(frame_id >> 8); pkt[7] = (byte)frame_id;
+            pkt[10] = (byte)(count >> 8); pkt[11] = (byte)count;
+            for (int i = 0; i < count; i++)
+            {
+                int off = i * FRAG_PAYLOAD;
+                int len = Math.Min(FRAG_PAYLOAD, jpeg.Length - off);
+                pkt[8] = (byte)(i >> 8); pkt[9] = (byte)i;
+                Buffer.BlockCopy(jpeg, off, pkt, 12, len);
+                udp.Send(pkt, 12 + len, ep);
+            }
         }
 
         static byte[] FrameToJpegBytesEmgu(Mat frame, int quality = 70)
@@ -1996,7 +2033,12 @@ namespace tcp_to_udp
         public double[] offset_plate_y;
         public double[] offset_plate_z;
 
-        
+        public double offset_las_sys_x = 0;
+        public double offset_las_sys_y = 0;
+        public double offset_las_sys_z = 0;
+
+
+
         //------------------------------------------
 
         public int table_work_pos   = 0;
@@ -2006,6 +2048,12 @@ namespace tcp_to_udp
 
         public int servo_open_val = 0;
         public int servo_close_val = 0;
+
+        public int servo_osc1_open_val = 0;
+        public int servo_osc1_close_val = 0;
+
+        public int servo_osc2_open_val = 0;
+        public int servo_osc2_close_val = 0;
 
         public int osc_rot_start_pos1 = 0;
         public int osc_rot_start_pos2 = 0;

@@ -2469,7 +2469,8 @@ namespace tcp_to_udp
             {
 
 
-                offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]);
+                offset_plate.p_xyz = new Point3d_GL(settins_string.offset_plate_x[cur_plate_type], settins_string.offset_plate_y[cur_plate_type], settins_string.offset_plate_z[cur_plate_type]) +
+                    new Point3d_GL(settins_string.offset_las_sys_x, settins_string.offset_las_sys_y, settins_string.offset_las_sys_z);
                 //Console.WriteLine("offset_nossle" + offset_nossle[tool_active].p_xyz);
                 //Console.WriteLine("offset_plate:" + offset_plate.p_xyz + " num:" + cur_plate_type);
                 p = new StepperFrame(offset_nossle[tool_active].p_xyz + offset_plate.p_xyz, 0, jog_xyz_vel);
