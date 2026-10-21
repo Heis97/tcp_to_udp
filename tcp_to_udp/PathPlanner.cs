@@ -2151,6 +2151,13 @@ namespace tcp_to_udp
 
             var p_abs = new Point3d_GL(0, 0, 0);
             var e_abs = 0d;
+
+            if (dest_coordinate_system == coordinate_system.AUTO)
+            {
+                coms.Add(new StepperFrame(0, 631, ""));
+                //coms.Add(new StepperFrame(0, 640, "1"));
+                //coms.Add(new StepperFrame(new Point3d_GL(0, 0, safe_z), 0, travel_xyz_vel));
+            }
             for (int i = 0; i < orig_g_code.Length; i++)
             {
                 var line = orig_g_code[i].Trim();

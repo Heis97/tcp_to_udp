@@ -1453,7 +1453,9 @@ namespace tcp_to_udp
                                             printer.tool_calibrated_auto[printer.tool_active] = true;
                                             printer.start_alternate_prog(prog_cur.ToArray());
                                             printer.calibrating_nossle = false;
+                                            printer.cur_coordinate_system = printer.dest_coordinate_system;
                                             printer.offset_frame = printer.comp_offset(printer.cur_coordinate_system);
+
                                             Console.WriteLine("calibrate done");
                                         }
 
