@@ -293,7 +293,14 @@ namespace tcp_to_udp
                     Console.WriteLine("Error accessing RemoteEndPoint: " + ex.Message);
                 }
                 lock (_lock_out) { buffer_out = ""; }
-                lock (_lock_in) { buffer_in.Clear(); len = 0; }
+                lock (_lock_in)
+                {
+                    var all = buffer_in.ToString();
+                    int k = all.LastIndexOf('\n');
+                    buffer_in.Clear();
+                    if (k >= 0) buffer_in.Append(all, 0, k + 1);
+                    len = buffer_in.Length;
+                }
                 _client = client;
                 _stream = client.GetStream();
                 _response = new StringBuilder();
